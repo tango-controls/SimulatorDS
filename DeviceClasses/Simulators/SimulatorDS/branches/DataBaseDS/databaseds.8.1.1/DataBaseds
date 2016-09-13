@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+
+import database
+import threading
+
+def main():
+    database.main()
+    
+if __name__ == '__main__':
+    #main()
+    thread = threading.Thread(target=main)
+    thread.start()
+
+

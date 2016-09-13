@@ -1,0 +1,6 @@
+#!/bin/sh
+
+. alba_blissrc
+
+cd $SICILIA/ds/python/PySignalSimulator
+screen -dm -S PySignalSimulator-$1 python PySignalSimulator.py $1 $2
