@@ -1,14 +1,14 @@
 #    "$Name:  $";
-#    "$Header: /cvsroot/tango-ds/Simulators/PySignalSimulator/PySignalSimulator.py,v 1.4 2008/11/21 11:51:44 sergi_rubio Exp $";
+#    "$Header: /cvsroot/tango-ds/Simulators/SimulatorDS/SimulatorDS.py,v 1.4 2008/11/21 11:51:44 sergi_rubio Exp $";
 #=============================================================================
 #
-# file :        PySignalSimulator.py
+# file :        SimulatorDS.py
 #
-# description : Python source for the PySignalSimulator and its commands. 
+# description : Python source for the SimulatorDS and its commands. 
 #                The class is derived from Device. It represents the
 #                CORBA servant object which will be accessed from the
 #                network. All commands which can be executed on the
-#                PySignalSimulator are implemented in this file.
+#                SimulatorDS are implemented in this file.
 #
 # project :     TANGO Device Server
 #
@@ -16,7 +16,7 @@
 #
 # $Revision: 1.4 $
 #
-# $Log: PySignalSimulator.py,v $
+# $Log: SimulatorDS.py,v $
 # Revision 1.4  2008/11/21 11:51:44  sergi_rubio
 # Adapted_to_fandango.dynamic.DynamicDS_template
 #
@@ -52,7 +52,7 @@ import fandango
 from fandango.dynamic import DynamicDS,DynamicDSClass,DynamicAttribute
 
 #==================================================================
-#   PySignalSimulator Class Description:
+#   SimulatorDS Class Description:
 #
 #         <p>This device requires <a href="http://www.tango-controls.org/Documents/tools/fandango/fandango">Fandango module<a> to be available in the PYTHONPATH.</p>
 #         <p>
@@ -90,7 +90,7 @@ from fandango.dynamic import DynamicDS,DynamicDSClass,DynamicAttribute
 #==================================================================
 
 
-class PySignalSimulator(DynamicDS): #PyTango.Device_4Impl):
+class SimulatorDS(DynamicDS): #PyTango.Device_4Impl):
 
 #--------- Add you global variables here --------------------------
 
@@ -99,7 +99,7 @@ class PySignalSimulator(DynamicDS): #PyTango.Device_4Impl):
 #------------------------------------------------------------------
     def __init__(self,cl, name):
         #PyTango.Device_4Impl.__init__(self,cl,name)
-        print 'IN PYSIGNALSIMULATOR.__INIT__'
+        print 'IN SimulatorDS.__INIT__'
         
         ##Loading special methods to be available in formulas
         _locals = {}
@@ -113,7 +113,7 @@ class PySignalSimulator(DynamicDS): #PyTango.Device_4Impl):
         except: print 'Unable to import custom Signals module'
         
         DynamicDS.__init__(self,cl,name,_locals=_locals,useDynStates=True)
-        PySignalSimulator.init_device(self)
+        SimulatorDS.init_device(self)
 
 #------------------------------------------------------------------
 #    Device destructor
@@ -130,7 +130,7 @@ class PySignalSimulator(DynamicDS): #PyTango.Device_4Impl):
         self.setLogLevel('DEBUG')
         self.set_state(PyTango.DevState.ON)
         #self.get_device_properties(self.get_device_class()) #Default values of properties already initialized by DynamicDS.__init__()
-        #print 'PySignalSimulator Property values are:\n'+'\n'.join('\t%s:\t%s'%(k,getattr(self,k)) for k in DynamicDSClass.device_property_list)
+        #print 'SimulatorDS Property values are:\n'+'\n'.join('\t%s:\t%s'%(k,getattr(self,k)) for k in DynamicDSClass.device_property_list)
         self.get_DynDS_properties()
         if self.DynamicStates: self.set_state(PyTango.DevState.UNKNOWN)
         print "Out of ", self.get_name(), "::init_device()"
@@ -144,7 +144,7 @@ class PySignalSimulator(DynamicDS): #PyTango.Device_4Impl):
 
 #==================================================================
 #
-#    PySignalSimulator read/write attribute methods
+#    SimulatorDS read/write attribute methods
 #
 #==================================================================
 #------------------------------------------------------------------
@@ -156,16 +156,16 @@ class PySignalSimulator(DynamicDS): #PyTango.Device_4Impl):
 
 #==================================================================
 #
-#    PySignalSimulator command methods
+#    SimulatorDS command methods
 #
 #==================================================================
     
 #==================================================================
 #
-#    PySignalSimulatorClass class definition
+#    SimulatorDSClass class definition
 #
 #==================================================================
-class PySignalSimulatorClass(DynamicDSClass):
+class SimulatorDSClass(DynamicDSClass):
 
     #    Class Properties
     class_property_list = {
@@ -196,23 +196,23 @@ class PySignalSimulatorClass(DynamicDSClass):
 
 
 #------------------------------------------------------------------
-#    PySignalSimulatorClass Constructor
+#    SimulatorDSClass Constructor
 #------------------------------------------------------------------
     def __init__(self, name):
         PyTango.DeviceClass.__init__(self, name)
         self.set_type(name);
-        print "In PySignalSimulatorClass  constructor"
+        print "In SimulatorDSClass  constructor"
 
 #==================================================================
 #
-#    PySignalSimulator class main method
+#    SimulatorDS class main method
 #
 #==================================================================
 if __name__ == '__main__':
     try:
-        #py = PyTango.Util(sys.argv) #Rewritten because name of file doesn't match servers name
-        py = PyTango.Util(['PySignalSimulator',[a for a in sys.argv if not a.startswith('-')][-1]])
-        py.add_TgClass(PySignalSimulatorClass,PySignalSimulator,'PySignalSimulator')
+        #py = PyTango.Util(sys.argv) #Rewritten because name of file doesnt match servers name
+        py = PyTango.Util(['SimulatorDS',[a for a in sys.argv if not a.startswith('-')][-1]])
+        py.add_TgClass(SimulatorDSClass,SimulatorDS,'SimulatorDS')
         U = PyTango.Util.instance()
         U.server_init()
         U.server_run()

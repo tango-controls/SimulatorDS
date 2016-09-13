@@ -19,11 +19,11 @@ To install as local package:
 print(__doc__)
 
 version = open('VERSION').read().strip()
-scripts = ['PyPLC']
+scripts = ['bin/SimulatorDS']
 license = 'GPL-3.0'
 
 package_dir = {
-    'PyPLC': '.',
+    'SimulatorDS': '.',
 }
 packages = package_dir.keys()
 
@@ -34,10 +34,10 @@ package_data = {
 packages = package_dir.keys()
 
 
-setup(name = 'tangods-pyplc',
+setup(name = 'tangods-simulatords',
       version = version,
       license = license,
-      description = 'Tango device for Modbus equipment',
+      description = 'Tango device for simulation and calculation',
       packages = packages,
       package_dir= package_dir,
       scripts = scripts,
