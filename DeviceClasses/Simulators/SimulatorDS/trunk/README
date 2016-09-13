@@ -16,6 +16,8 @@ Usage:
 
 CHANGELOG
 
+4.0: Renamed to SimulatorDS
+
 3.1: Improved simulation script, added 64 bits, better PyTangoArchiving and Scipy support.
 
 3.0: Added gen_simulation script to extract and replay attribute values for complex simulation
