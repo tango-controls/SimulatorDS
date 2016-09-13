@@ -119,7 +119,7 @@ def get_module_dict(module,ks=None):
 #==================================================================
 
 
-class SimulatorDS(PyTango.Device_4Impl):
+class SimulatorDS(DynamicDS):
 
     #--------- Add you global variables here --------------------------
     LIBS = [math,random,Signals]
@@ -199,7 +199,7 @@ class SimulatorDS(PyTango.Device_4Impl):
 #    SimulatorDSClass class definition
 #
 #==================================================================
-class SimulatorDSClass(PyTango.DeviceClass):
+class SimulatorDSClass(DynamicDSClass):
 
     #    Class Properties
     class_property_list = {
@@ -255,16 +255,16 @@ class SimulatorDSClass(PyTango.DeviceClass):
 #
 #==================================================================
 
-class PySignalSimulator(SimulatorDS): pass
-class PySignalSimulatorClass(SimulatorDSClass): pass
+#class PySignalSimulator(SimulatorDS): pass
+#class PySignalSimulatorClass(SimulatorDSClass): pass
+
+#SimulatorDS,SimulatorDSClass = FullTangoInheritance('SimulatorDS',SimulatorDS,SimulatorDSClass,DynamicDS,DynamicDSClass,ForceDevImpl=True)
 
 def main(args=None):
     try:
         py = PyTango.Util(args or sys.argv)
-        # Adding all commands/properties from fandango.DynamicDS
-        SimulatorDS,SimulatorDSClass = FullTangoInheritance('SimulatorDS',SimulatorDS,SimulatorDSClass,DynamicDS,DynamicDSClass,ForceDevImpl=True)
         py.add_TgClass(SimulatorDSClass,SimulatorDS,'SimulatorDS')
-        py.add_TgClass(PySignalSimulatorClass,PySignalSimulator,'PySignalSimulator')
+        #py.add_TgClass(PySignalSimulatorClass,PySignalSimulator,'PySignalSimulator')
 
         U = PyTango.Util.instance()
         fandango.dynamic.CreateDynamicCommands(SimulatorDS,SimulatorDSClass)
@@ -278,6 +278,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-else:
-    #Enabling subclassing
-    SimulatorDS,SimulatorDSClass = FullTangoInheritance('SimulatorDS',SimulatorDS,SimulatorDSClass,DynamicDS,DynamicDSClass,ForceDevImpl=True)
