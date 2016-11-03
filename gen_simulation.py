@@ -200,36 +200,35 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
     print('>'*80)
 
     for d,t in sorted(devs.items()):
-        klass = 'PyStateComposer' if t.dev_class == 'PyStateComposer' else 'PySignalSimulator'
-        server = 'DynamicServer'
-        print(('%s/%s'%(server,instance),server,d))
+        t.dev_class = t.dev_class or d.split('/')[-1]
+        klass = 'PyStateComposer' if t.dev_class == 'PyStateComposer' else 'SimulatorDS'
+        server = 'DynamicDS'
+        print(('%s/%s'%(server,instance+'-'+t.dev_class),server,d))
         its_new = ('/'.join(('dserver',server,instance))).lower() not in all_devs or d.lower() not in all_devs
-        if its_new:
-         print('creating ...')
-         fandango.tango.add_new_device('%s/%s'%(server,instance),klass,d)
 
         if its_new or override: 
+            print('writing ... %s(%s)'%(type(t),d))            
+            fandango.tango.add_new_device('%s/%s-%s'%(server,instance,t.dev_class),klass,d)
             for p,v in t.props.items():
                 if not p.startswith('__'): #p not in ('DynamicCommands','DynamicStates','LoadFromFile','DevicesList') and 
                     fandango.tango.put_device_property(d,p,v)         
             #Overriding Dynamic* properties
             try:
                 fandango.tango.put_device_property(d,'LoadFromFile',path+'%s_attributes.txt'%t.dev_class)
-            except: traceback.print_exc()
-            try:
                 fandango.tango.put_device_property(d,'DynamicAttributes',filter(bool,map(str.strip,open(path+'%s_attributes.txt'%t.dev_class).readlines())))
-            except: traceback.print_exc()        
-            try:
                 fandango.tango.put_device_property(d,'DynamicCommands',filter(bool,map(str.strip,open(path+'%s_commands.txt'%t.dev_class).readlines())))
-            except: traceback.print_exc()
-            try:
                 fandango.tango.put_device_property(d,'DynamicStates',filter(bool,map(str.strip,open(path+'%s_states.txt'%t.dev_class).readlines())))
-            except: traceback.print_exc()
+            except: 
+                print('Unable to configure %s(%s) properties '%(d,t.dev_class))
+                #traceback.print_exc()
         
         fandango.tango.put_device_property(d,'OFFSET',random.randint(0,len(devs)))
         done.append(d)
 
+    exported = fandango.get_all_devices(exported=True)
+    print('Checking Devices ...')
     for d in done:
+        if d not in exported: continue
         if fandango.check_device(d):
             print('Updating %s ...'%d)
             try: fandango.get_device(d).updateDynamicAttributes()
@@ -241,7 +240,7 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
 def run_dynamic_server(instance):
     print('run_dynamic_server:'+str(instance))
     from fandango.dynamic import DynamicServer
-    sys.argv = ['DynamicServer.py',instance,'-v2']
+    sys.argv = ['DynamicDS.py',instance,'-v2']
     print(sys.argv)
     pyds = DynamicServer(add_debug=False)
     pyds.main()
@@ -272,7 +271,7 @@ def set_push_events(filein,period=3000,diff=1e-5):
 def delete_simulators(filein):
     #NOTE THIS METHOD SHOUL DELETE ONLY PYSIGNALSIMULATOR INSTANCES, NOT ANYTHING ELSE!
     raise 'NotImplementedYet!'
-    all_sims = fandango.Astor('Py*Simulator/*').get_all_devices()
+    all_sims = fandango.Astor('*Simulator*/*').get_all_devices()
     devs = [d for d in pickle.load(open(filein)) if d in all_sims]
     db = PyTango.Database()
     for d in devs:
