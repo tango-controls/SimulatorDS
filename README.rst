@@ -1,0 +1,29 @@
+
+This is the simulation suite for PyTango, it allows to create dynamic device servers and replicate existings systems into playable mockups.
+
+It requires fandango: https://github.com/tango-controls/fandango
+
+Usage::
+
+  gen_simulation.py ['list', 'export', 'generate', 'load', 'play', 'push'] file_input/instance [main_method/polling_period]
+
+  ('list', '[main.py main_method]', 'export device/attribute lists from application into a file')
+  ('export', '[attributes.txt]', 'export values from an attribute list into a .pck file')
+  ('generate', '[...]', 'create the property files for simulators')
+  ('load', '[...]', 'create simulators from files')
+  ('play', '[...]', 'run the simulators')
+  ('push', '[...]', 'configure simulators event pushing')
+
+
+CHANGELOG
+
+:4.0: Renamed to SimulatorDS
+
+:3.1: Improved simulation script, added 64 bits, better PyTangoArchiving and Scipy support.
+
+:3.0: Added gen_simulation script to extract and replay attribute values for complex simulation
+
+:2.5: Init() capable, added Scipy and PyTangoArchiving
+Library/Modules loading refactored in the code.
+
+
