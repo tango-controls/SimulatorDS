@@ -110,3 +110,8 @@ Meta Variables
 Many keywords and special functions are available in the formulas:
 
 https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#directives-and-keywords
+
+Generating a ramp
+=================
+
+https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#creating-a-ramp-with-a-simulatords
