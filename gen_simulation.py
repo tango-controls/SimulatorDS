@@ -110,54 +110,65 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
      classes[s.dev_class].values = defaultdict(set)
      
     for d,s in devs.items():
-     if s.dev_class in filters: continue
-     for a,t in s.attrs.items():
-      if t.value is not None and not any(x in t.datatype.lower() for x in ('array',)):
-       try:
-        classes[s.dev_class].values[a].add(t.value)
-       except:
-        print d,s.dev_class,a,t
+
+      if s.dev_class in filters: 
+        continue
+      
+      for a,t in s.attrs.items():
+        t['datatype'] = t.get('data_type','DevDouble')
+        if not isinstance(t,Struct): t = Struct(t)
+        
+        if t.value is not None and not any(x in t.datatype.lower() for x in ('array',)):
+          try:
+            classes[s.dev_class].values[a].add(t.value)
+          except:
+            print d,s.dev_class,a,t
 
     for d,s in devs.items():
       
-     if s.dev_class in filters: continue
-   
-     for a,t in s.attrs.items():
-       
-      if a.lower() in ('state','status'):
-       continue
+      if s.dev_class in filters: 
+        continue
      
-      if t.value is None and a in classes[s.dev_class].attrs:
-       continue
-     
-      else:
+      #Iterate attributes
+      for a,t in s.attrs.items():
        
-       if t.value is None: 
-         datatype,formula = 'DevDouble','NaN'
+        if a.lower() in ('state','status'):
+          continue
+     
+        if t.value is None and a in classes[s.dev_class].attrs:
+          continue
+     
+        else:
+          if t.value is None: 
+            datatype,formula = 'DevDouble','NaN'
          
-       else:
-         datatype = t.datatype if t.format=='SCALAR' else t.datatype.replace('Dev','DevVar')+'Array'
-         if 'bool' in datatype.lower(): formula = DEFAULT_BOOL()
-         elif 'state' in datatype.lower(): formula = DEFAULT_STATE(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
-         elif 'string' in datatype.lower(): formula = DEFAULT_STRING(d=d,a=a,f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
-         elif 'double' in datatype.lower() or 'float' in datatype.lower(): formula = DEFAULT_DOUBLE(f=random.choice(list(classes[s.dev_class].values[a]) or [0]))
-         else: formula = DEFAULT_INT(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
-         if 'Array' in datatype: formula = "[%s for i in range(10)]"%formula
-         if all_rw or 'WRITE' in t.writable: formula = DEFAULT_WRITE(a=a,f=formula)
-         classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
+          else:
+            datatype = t.datatype if t.format=='SCALAR' else t.datatype.replace('Dev','DevVar')+'Array'
+            if 'bool' in datatype.lower(): formula = DEFAULT_BOOL()
+            elif 'state' in datatype.lower(): formula = DEFAULT_STATE(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
+            elif 'string' in datatype.lower(): formula = DEFAULT_STRING(d=d,a=a,f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
+            elif 'double' in datatype.lower() or 'float' in datatype.lower(): formula = DEFAULT_DOUBLE(f=random.choice(list(classes[s.dev_class].values[a]) or [0]))
+            else: formula = DEFAULT_INT(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
+            if 'Array' in datatype: formula = "[%s for i in range(10)]"%formula
+            if all_rw or 'WRITE' in t.writable: formula = DEFAULT_WRITE(a=a,f=formula)
+            classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
          
-     for c,t in s.comms.items():
-         datatype = t[1] if t[1]!='DevVoid' else 'DevString'
-         if 'bool' in datatype.lower(): formula = DEFAULT_BOOL()
-         elif 'state' in datatype.lower(): formula = DEFAULT_STATE()
-         elif 'string' in datatype.lower(): formula = DEFAULT_STRING(d=d,a=c)
-         elif 'double' in datatype.lower() or 'float' in datatype.lower(): formula = DEFAULT_DOUBLE()
-         else: formula = DEFAULT_INT()
-         if 'Array' in datatype: formula = "[%s for i in range(10)]"%formula
-         if 'DevVoid' not in t[0]: formula = DEFAULT_ARGS(f=formula)
-         classes[s.dev_class].comms[c] = '%s = %s(%s)'%(c,datatype,formula)
+      #Iterate commands
+      for c,t in s.comms.items():
+        
+        if fandango.isMapping(t):
+          t = t['in_type'],t['out_type']
+        datatype = t[1] if t[1]!='DevVoid' else 'DevString'
+        if 'bool' in datatype.lower(): formula = DEFAULT_BOOL()
+        elif 'state' in datatype.lower(): formula = DEFAULT_STATE()
+        elif 'string' in datatype.lower(): formula = DEFAULT_STRING(d=d,a=c)
+        elif 'double' in datatype.lower() or 'float' in datatype.lower(): formula = DEFAULT_DOUBLE()
+        else: formula = DEFAULT_INT()
+        if 'Array' in datatype: formula = "[%s for i in range(10)]"%formula
+        if 'DevVoid' not in t[0]: formula = DEFAULT_ARGS(f=formula)
+        classes[s.dev_class].comms[c] = '%s = %s(%s)'%(c,datatype,formula)
          
-     classes[s.dev_class].states = DEFAULT_STATES
+      classes[s.dev_class].states = DEFAULT_STATES
       
     for k,t in classes.items():
       print('\nWriting %s attributes ([%d])\n'%(k,len(t.attrs)))
