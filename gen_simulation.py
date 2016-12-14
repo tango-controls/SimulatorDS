@@ -13,9 +13,9 @@ DEFAULT_BOOL = lambda c=None,d=None,a=None,f=None: 'randint(0,1)'
 DEFAULT_ARGS = lambda c=None,d=None,a=None,f=None: 'ARGS and %s'%f
 
 DEFAULT_STATES = [
-    "ON=int(PROPERTY('OFFSET'))+t%%(%d)<int(PROPERTY('OFFSET'))-randint(0,5)"%60,
-    "ALARM=t%10<5",
-    "MOVING=1"]
+    "MOVING=t%randint(15,30)>randint(1,15)",
+    "ALARM=t%randint(1,30)<randint(1,6)",
+    "ON=1"]
 
 def run_app(filename,method_name,args):
  print('run_app:'+str((filename,method_name,args)))
@@ -95,7 +95,8 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',fileout='ui_attrib
     pickle.dump(devs,open(fileout,'w'))
     return(fileout)
 
-def generate_class_properties(filein='ui_attribute_values.pck'):
+def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
+  
     print('generate_class_properties:'+str(filein))
     devs = pickle.load(open(filein))
 
@@ -118,15 +119,22 @@ def generate_class_properties(filein='ui_attribute_values.pck'):
         print d,s.dev_class,a,t
 
     for d,s in devs.items():
+      
      if s.dev_class in filters: continue
+   
      for a,t in s.attrs.items():
+       
       if a.lower() in ('state','status'):
        continue
+     
       if t.value is None and a in classes[s.dev_class].attrs:
        continue
+     
       else:
+       
        if t.value is None: 
          datatype,formula = 'DevDouble','NaN'
+         
        else:
          datatype = t.datatype if t.format=='SCALAR' else t.datatype.replace('Dev','DevVar')+'Array'
          if 'bool' in datatype.lower(): formula = DEFAULT_BOOL()
@@ -135,8 +143,9 @@ def generate_class_properties(filein='ui_attribute_values.pck'):
          elif 'double' in datatype.lower() or 'float' in datatype.lower(): formula = DEFAULT_DOUBLE(f=random.choice(list(classes[s.dev_class].values[a]) or [0]))
          else: formula = DEFAULT_INT(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
          if 'Array' in datatype: formula = "[%s for i in range(10)]"%formula
-         if 'WRITE' in t.writable: formula = DEFAULT_WRITE(a=a,f=formula)
+         if all_rw or 'WRITE' in t.writable: formula = DEFAULT_WRITE(a=a,f=formula)
          classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
+         
      for c,t in s.comms.items():
          datatype = t[1] if t[1]!='DevVoid' else 'DevString'
          if 'bool' in datatype.lower(): formula = DEFAULT_BOOL()
@@ -147,6 +156,7 @@ def generate_class_properties(filein='ui_attribute_values.pck'):
          if 'Array' in datatype: formula = "[%s for i in range(10)]"%formula
          if 'DevVoid' not in t[0]: formula = DEFAULT_ARGS(f=formula)
          classes[s.dev_class].comms[c] = '%s = %s(%s)'%(c,datatype,formula)
+         
      classes[s.dev_class].states = DEFAULT_STATES
       
     for k,t in classes.items():
@@ -179,36 +189,43 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
     devs,org = {},pickle.load(open(filein if '/' in filein else path+filein))
     done = []
     all_devs = fandango.get_all_devices()
+    
     print('>'*80)
+    
     if not filters:
       print('%d devices in %s: %s'%(len(org),filein,sorted(org.keys())))
       filters=raw_input('Do you want to filter devices? [*/*/*]').lower()
+      
     for d,t in org.items():
         k = ('/'.join(d.split('/')[-3:])).lower() #Removing tango host from the name
         for a,b in domains.items():
             if k.startswith(a): k = k.replace(a,b)
         if not filters or fandango.matchCl(filters,d) or fandango.matchCl(filters,org[d].dev_class):
             devs[k] = t
+            
     if override is not False:
       dds = [d for d in devs if ('/'.join(d.split('/')[-3:])).lower() in all_devs]
       if dds:
         print('%d devices already exist: %s'%(len(dds),sorted(dds)))
         override=raw_input('Do you want to override existing properties?').lower().startswith('y')
       else: override = False
+      
     if not instance:
-      instance = raw_input('Enter your instance name for the simulated DynamicServer:')
+      instance = raw_input('Enter your instance name for the simulated DynamicServer (use "instance-" to use multiple instances):')
+      
     print('>'*80)
 
     for d,t in sorted(devs.items()):
         t.dev_class = t.dev_class or d.split('/')[-1]
         klass = 'PyStateComposer' if t.dev_class == 'PyStateComposer' else 'SimulatorDS'
         server = 'DynamicDS'
-        print(('%s/%s'%(server,instance+'-'+t.dev_class),server,d))
+        instance = '%s%s'%(instance,t.dev_class) if '-' in instance else instance
+        print('%s/%s:%s , "%s" => %s '%(server,instance,d,t.dev_class,klass))
         its_new = ('/'.join(('dserver',server,instance))).lower() not in all_devs or d.lower() not in all_devs
 
         if its_new or override: 
             print('writing ... %s(%s)'%(type(t),d))            
-            fandango.tango.add_new_device('%s/%s-%s'%(server,instance,t.dev_class),klass,d)
+            fandango.tango.add_new_device('%s/%s'%(server,instance),klass,d)
             for p,v in t.props.items():
                 if not p.startswith('__'): #p not in ('DynamicCommands','DynamicStates','LoadFromFile','DevicesList') and 
                     fandango.tango.put_device_property(d,p,v)         
@@ -226,15 +243,18 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
         done.append(d)
 
     exported = fandango.get_all_devices(exported=True)
-    print('Checking Devices ...')
-    for d in done:
-        if d not in exported: continue
+    update = [d for d in done if d in exported]
+    print('Updating %d Devices ...'%len(update))
+    for d in update:
         if fandango.check_device(d):
             print('Updating %s ...'%d)
             try: fandango.get_device(d).updateDynamicAttributes()
             except Exception,e: print(e)
-        time.sleep(2.)
-    print 'device creation done'
+        else:
+            print('%s failed!'%d)
+        time.sleep(.2)
+    print('%d devices creation done'%len(done))
+    print(done[0],exported[0])
     return instance
 
 def run_dynamic_server(instance):
