@@ -39,6 +39,8 @@ The first step is to write the list of devices to export into a .txt file::
   
 Then, from python export all the attribute values and config to .pck files:
 
+.. code:: python
+
   # ipython
   from SimulatorDS import gen_simulation
   gen_simulation.export_attributes_to_pck('elinac_devices.txt','elinac_devices.pck')
@@ -46,7 +48,9 @@ Then, from python export all the attribute values and config to .pck files:
 On the simulation side
 ----------------------
 
-As the simulators will use the same device names than the original, do not reproduce this steps in your production database, but in your local/test tango host where you are running your tests::
+As the simulators will use the same device names than the original, do not reproduce this steps in your production database, but in your local/test tango host where you are running your tests:
+
+.. code:: python
 
   # ipython
   from SimulatorDS import gen_simulation as gs
@@ -73,7 +77,9 @@ Once you're done, launch the SimulatorDS and your favourite GUI from console::
 Example of DynamicAttributes property declaration
 =================================================
 
-The attributes are created after restarting the device or calling updateDynamicAttributes() ... do not use Init() to do it!::
+The attributes are created after restarting the device or calling updateDynamicAttributes() ... do not use Init() to do it!:
+
+.. code:: python
 
   Square=0.5+square(t) #(t = seconds since the device started)
   NoisySinus=2+1.5*sin(3*t)-0.5*random()
@@ -101,7 +107,9 @@ Signals that can be easily generated with amplitude between 0.0 and 1.0 are:
 
 The MaxValue/MinValue property for each Attribute will determine the State of the Device only if the property DynamicStates is not defined.
 
-If defined, DynamicStates will use this format::
+If defined, DynamicStates will use this format:
+
+.. code:: python
 
   FAULT=2*square(0.9,60)>0.<br>
   ALARM=NoisySinus>3<br>
