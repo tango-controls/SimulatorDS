@@ -1,5 +1,7 @@
 .. contents::
 
+----
+
 Description
 ===========
 
@@ -20,6 +22,8 @@ To specify the code for each attribute we use python that has several advantages
 More on fandango.DynamicDS syntax:
 
   https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst
+
+----
 
 Export a running system to simulators
 =====================================
@@ -71,8 +75,7 @@ Once you're done, launch the SimulatorDS and your favourite GUI from console::
   # python SimulatorDS.py elinac_test &
   # vaccagui $VACCA_PATH/examples/elinac/elinac.py
  
-  
-  
+---- 
   
 Example of DynamicAttributes property declaration
 =================================================
@@ -115,6 +118,8 @@ If defined, DynamicStates will use this format:
   ALARM=NoisySinus>3<br>
   ON=1<br>
 
+----
+
 Example using DynamicAttributes, DynamicStates and DynamicCommands
 ==================================================================
 
@@ -134,6 +139,8 @@ DynamicCommands::
 
   test_command=str(VAR('C',int(ARGS[0])) or VAR('C'))
 
+----
+
 Setting Dynamic States
 ======================
 
@@ -145,6 +152,8 @@ For DynamicStates a boolean operation must be set to each state ... but the name
 The "STATE" clause can be used also; forcing the state returned by the code. (NOTE: States are usable within formulas, so it should not be converted to string!)
 
   STATE=ON if Voltage>0 else OFF
+
+----
 
 Reading other Attribute Values
 ==============================
