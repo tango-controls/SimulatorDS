@@ -75,6 +75,42 @@ Once you're done, launch the SimulatorDS and your favourite GUI from console::
   # python SimulatorDS.py elinac_test &
   # vaccagui $VACCA_PATH/examples/elinac/elinac.py
  
+From Shell
+----------
+
+Export/Loading process can be executed from linux shell::
+
+  #Go to your real system and export the devices called from your gui
+
+  python export_vacca_devices.py #put in the thread the main method of your UI
+
+  #Edit the file with the device list, add any extra device you need
+
+  python export_device_attributes.py
+
+  #It will generate the .pck file, send it to your simulation machine (aka 
+  controls02) or attach it to an RT ticket together with the bliss package 
+  name/version for the UI
+
+  #Then, for running the simulation:
+
+  python generate_class_properties.py
+
+  #It will create the $CLASS_attributes/commands/states.txt files; edit it 
+  to add the custom logic you need; see the attached *txt files as examples
+
+  #edit and modify the domain, instance,etc. defined variables in 
+  create_device_servers.py before launching it
+
+  python create_device_servers.py
+
+  #It will create the devices and will apply the properties from the .pck 
+  and the .txt files
+
+  #Then, just run it:
+
+  $SICILIA/ds/PySignalSimulator $instance
+  
 ---- 
   
 Example of DynamicAttributes property declaration
