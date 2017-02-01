@@ -230,13 +230,13 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
         t.dev_class = t.dev_class or d.split('/')[-1]
         klass = 'PyStateComposer' if t.dev_class == 'PyStateComposer' else 'SimulatorDS'
         server = 'DynamicDS'
-        instance = '%s%s'%(instance,t.dev_class) if '-' in instance else instance
-        print('%s/%s:%s , "%s" => %s '%(server,instance,d,t.dev_class,klass))
-        its_new = ('/'.join(('dserver',server,instance))).lower() not in all_devs or d.lower() not in all_devs
+        instance_temp = '%s%s'%(instance,t.dev_class) if '-' in instance else instance
+        print('%s/%s:%s , "%s" => %s '%(server,instance_temp,d,t.dev_class,klass))
+        its_new = ('/'.join(('dserver',server,instance_temp))).lower() not in all_devs or d.lower() not in all_devs
 
         if its_new or override: 
             print('writing ... %s(%s)'%(type(t),d))            
-            fandango.tango.add_new_device('%s/%s'%(server,instance),klass,d)
+            fandango.tango.add_new_device('%s/%s'%(server,instance_temp),klass,d)
             for p,v in t.props.items():
                 if not p.startswith('__'): #p not in ('DynamicCommands','DynamicStates','LoadFromFile','DevicesList') and 
                     fandango.tango.put_device_property(d,p,v)         
