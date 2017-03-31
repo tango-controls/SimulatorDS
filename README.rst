@@ -1,6 +1,8 @@
 
 This is the simulation suite for PyTango, it allows to create dynamic device servers and replicate existings systems into playable mockups.
 
+See the recipes file: https://github.com/tango-controls/SimulatorDS/blob/master/doc/recipes.rst
+
 It requires fandango: https://github.com/tango-controls/fandango
 
 More information available at: https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst
