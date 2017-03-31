@@ -24,59 +24,6 @@ More on fandango.DynamicDS syntax:
   https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst
 
 ----
-
-Export a running system to simulators
-=====================================
-
-The gen_simulation submodule provides a fast way to export all the devices of a running control system to a simulation suite.
-
-This example will explain how was generated the ESRF linac simulation for Vacca GUI testing:
-
-  https://github.com/sergirubio/VACCA/blob/master/examples/elinac/README.rst
-
-On the real system side
------------------------
-
-The first step is to write the list of devices to export into a .txt file::
-
-  # fandango.sh find_devices "elin/*/*" > elinac_devices.txt
-  
-Then, from python export all the attribute values and config to .pck files:
-
-.. code:: python
-
-  # ipython
-  from SimulatorDS import gen_simulation
-  gen_simulation.export_attributes_to_pck('elinac_devices.txt','elinac_devices.pck')
-  
-On the simulation side
-----------------------
-
-As the simulators will use the same device names than the original, do not reproduce this steps in your production database, but in your local/test tango host where you are running your tests:
-
-.. code:: python
-
-  # ipython
-  from SimulatorDS import gen_simulation as gs
-  
-  # This step will convert attribute config into .txt files containing simulation formulas
-  # Default formulas for each attribute type are defined in gen_simulation.py; you can edit them there
-  
-  gs.generate_class_properties('elinac_devices.pck',all_rw=True)
-  
-  # This step will create the simulators in the database
-  # you can use a domains={'old':'new'} argument to create the devices on a different tree branch
-  gs.create_simulators('elinac_devices.pck',instance='elinac_test',tango_host='testhost04')
-  
-  # Now you can verify and modify the device properties with jive
-  
-Once you're done, launch the SimulatorDS and your favourite GUI from console::
-
-  # python SimulatorDS.py elinac_test &
-  # vaccagui $VACCA_PATH/examples/elinac/elinac.py
- 
-  
----- 
   
 Example of DynamicAttributes property declaration
 =================================================
@@ -182,3 +129,56 @@ Generating a ramp
 =================
 
 https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#creating-a-ramp-with-a-simulatords
+
+Export a running system to simulators
+=====================================
+
+The gen_simulation submodule provides a fast way to export all the devices of a running control system to a simulation suite.
+
+This example will explain how was generated the ESRF linac simulation for Vacca GUI testing:
+
+  https://github.com/sergirubio/VACCA/blob/master/examples/elinac/README.rst
+
+On the real system side
+-----------------------
+
+The first step is to write the list of devices to export into a .txt file::
+
+  # fandango.sh find_devices "elin/*/*" > elinac_devices.txt
+  
+Then, from python export all the attribute values and config to .pck files:
+
+.. code:: python
+
+  # ipython
+  from SimulatorDS import gen_simulation
+  gen_simulation.export_attributes_to_pck('elinac_devices.txt','elinac_devices.pck')
+  
+On the simulation side
+----------------------
+
+As the simulators will use the same device names than the original, do not reproduce this steps in your production database, but in your local/test tango host where you are running your tests:
+
+.. code:: python
+
+  # ipython
+  from SimulatorDS import gen_simulation as gs
+  
+  # This step will convert attribute config into .txt files containing simulation formulas
+  # Default formulas for each attribute type are defined in gen_simulation.py; you can edit them there
+  
+  gs.generate_class_properties('elinac_devices.pck',all_rw=True)
+  
+  # This step will create the simulators in the database
+  # you can use a domains={'old':'new'} argument to create the devices on a different tree branch
+  gs.create_simulators('elinac_devices.pck',instance='elinac_test',tango_host='testhost04')
+  
+  # Now you can verify and modify the device properties with jive
+  
+Once you're done, launch the SimulatorDS and your favourite GUI from console::
+
+  # python SimulatorDS.py elinac_test &
+  # vaccagui $VACCA_PATH/examples/elinac/elinac.py
+ 
+  
+---- 
