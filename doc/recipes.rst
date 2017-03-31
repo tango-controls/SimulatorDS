@@ -1,3 +1,7 @@
+===================
+SimulatorDS Recipes
+===================
+
 .. contents::
 
 ----
@@ -24,9 +28,12 @@ More on fandango.DynamicDS syntax:
   https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst
 
 ----
-  
-Example of DynamicAttributes property declaration
-=================================================
+
+Examples
+========
+
+DynamicAttributes property declaration
+--------------------------------------
 
 The attributes are created after restarting the device or calling updateDynamicAttributes() ... do not use Init() to do it!:
 
@@ -65,11 +72,38 @@ If defined, DynamicStates will use this format:
   FAULT=2*square(0.9,60)>0.<br>
   ALARM=NoisySinus>3<br>
   ON=1<br>
+  
+----
+
+Reading other Attribute Values
+==============================
+
+Values can be read from any attribute in the Tango Control System:
+
+https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#reading-tango-attributes
+
+Generating a ramp
+-----------------
+
+https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#creating-a-ramp-with-a-simulatords
+
 
 ----
 
+Setting Dynamic States
+----------------------
+
+For DynamicStates a boolean operation must be set to each state ... but the name of the State should match an standard Tango.DevState name (ON, FAULT, ALARM, OPEN, CLOSE, ...)
+
+  ALARM=(SomeAttribute > MaxRange)
+  ON=True
+
+The "STATE" clause can be used also; forcing the state returned by the code. (NOTE: States are usable within formulas, so it should not be converted to string!)
+
+  STATE=ON if Voltage>0 else OFF
+  
 Example using DynamicAttributes, DynamicStates and DynamicCommands
-==================================================================
+------------------------------------------------------------------
 
 It will use a command to record a value in the 'C' variable, it can be returned from the C attribute and will affect the State.
 
@@ -89,35 +123,6 @@ DynamicCommands::
 
 ----
 
-Setting Dynamic States
-======================
-
-For DynamicStates a boolean operation must be set to each state ... but the name of the State should match an standard Tango.DevState name (ON, FAULT, ALARM, OPEN, CLOSE, ...)
-
-  ALARM=(SomeAttribute > MaxRange)
-  ON=True
-
-The "STATE" clause can be used also; forcing the state returned by the code. (NOTE: States are usable within formulas, so it should not be converted to string!)
-
-  STATE=ON if Voltage>0 else OFF
-
-----
-
-Reading other Attribute Values
-==============================
-
-Values can be read from any attribute in the Tango Control System:
-
-https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#reading-tango-attributes
-
-The ExtraModules property (PyAttributeProcessor only): 
-======================================================
-
-        This property may contain "module", "module.*", "module.klass" or "module.klass as Alias" syntax
-
-        Each of these calls will add you the module or module contents to the locals() dictionary used to evaluate attribute formulas.
-
- 
 Meta Variables
 ==============
 
@@ -125,10 +130,14 @@ Many keywords and special functions are available in the formulas:
 
 https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#directives-and-keywords
 
-Generating a ramp
-=================
+The ExtraModules property (PyAttributeProcessor only) 
+-----------------------------------------------------
 
-https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#creating-a-ramp-with-a-simulatords
+        This property may contain "module", "module.*", "module.klass" or "module.klass as Alias" syntax
+
+        Each of these calls will add you the module or module contents to the locals() dictionary used to evaluate attribute formulas.
+
+----
 
 Export a running system to simulators
 =====================================
