@@ -75,17 +75,25 @@ If defined, DynamicStates will use this format:
   
 ----
 
-Reading other Attribute Values
-==============================
+Reading Tango attributes in formulas
+------------------------------------
 
-Values can be read from any attribute in the Tango Control System:
+Values can be read from any attribute in the Tango Control System::
+
+  AVERAGE = DevDouble((XATTR('a/tango/device/attribute')+XATTR('other/tango/device/attribute'))/2.)
 
 https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#reading-tango-attributes
 
 Generating a ramp
 -----------------
 
-https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#creating-a-ramp-with-a-simulatords
+A simple ramp at 0.1 Hz::
+
+  RAMP = 5*t%10
+
+Or  more complex:
+
+  https://github.com/tango-controls/fandango/blob/documentation/doc/recipes/DynamicDS_and_Simulators.rst#creating-a-ramp-with-a-simulatords
 
 
 ----
