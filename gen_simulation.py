@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os,sys,taurus,threading,pickle,time,traceback,random
-import PyTango,fandango
+import PyTango,fandango as fd
 from fandango import check_device,check_attribute,Struct,defaultdict
 
 DEFAULT_STATE = lambda c=None,d=None,a=None,f='ON': "%s"%f
@@ -30,6 +30,37 @@ def run_app(filename,method_name,args):
   if method_name: getattr(f,method_name)(*args)
  except:
   traceback.print_exc()
+  
+def split_server_by(server,rule=None):
+    """
+    Rule must be a callable that returns the name of new instance
+    Rule would be a callable with *args:
+     - device, [[server,] device_list]
+
+    If no rule is passed, instance-family is used
+    """
+    sname,instance = server.split('/',1)
+    sd = fd.ServersDict(server)
+    news = []
+    devs = sd.get_all_devices()
+    print('%s/%s contains %d devices'%(sname,instance,len(devs)))
+    ff = lambda d,*args: '%s-%s'%(instance.strip('*'),d.split('/')[1])
+    rule = fd.notNone(rule,ff)
+        
+        
+    for d in devs:
+        k = sd.get_device_class(d)
+        news.append(sname+'/'+rule(d,sname,devs))
+        print('%s(%s) => %s'%(k,d,news[-1]))
+        fd.tango.add_new_device(news[-1],k,d)
+        
+    return dict((k,news.count(k)) for k in set(news))
+        
+    
+            
+    
+            
+    
 
 def export_devices_from_application(*args):
     print('export_devices:'+str(args))
@@ -69,7 +100,7 @@ def export_devices_from_application(*args):
 
 def export_attributes_to_pck(filein='ui_exported_devices.txt',fileout='ui_attribute_values.pck'):
     print('export_attributes:'+str((filein,fileout)))
-    if fandango.isSequence(filein):
+    if fd.isSequence(filein):
         devs = filein
     else:
         devs = map(str.strip,open(filein).readlines())
@@ -80,8 +111,8 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',fileout='ui_attrib
       print('%s (%d/%d)' % (d,1+len(devs),len(proxies)))
       obj = devs[d]
       obj.dev_class,obj.attrs,obj.comms = '',defaultdict(Struct),{}
-      obj.props = dict((k,v if not 'vector' in str(type(v)).lower() else list(v)) for k,v in fandango.tango.get_matching_device_properties(d,'*').items() if 'dynamicattributes' not in k.lower())
-      if fandango.check_device(d):
+      obj.props = dict((k,v if not 'vector' in str(type(v)).lower() else list(v)) for k,v in fd.tango.get_matching_device_properties(d,'*').items() if 'dynamicattributes' not in k.lower())
+      if fd.check_device(d):
         devs[d].name = d
         devs[d].dev_class = dp.info().dev_class
         for c in dp.command_list_query():
@@ -90,7 +121,7 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',fileout='ui_attrib
         for a in dp.get_attribute_list():
          if a.lower() == 'status':
           continue
-         obj.attrs[a] = fandango.tango.export_attribute_to_dict(d,a,as_struct=True)
+         obj.attrs[a] = fd.tango.export_attribute_to_dict(d,a,as_struct=True)
       
     pickle.dump(devs,open(fileout,'w'))
     return(fileout)
@@ -156,7 +187,7 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
       #Iterate commands
       for c,t in s.comms.items():
         
-        if fandango.isMapping(t):
+        if fd.isMapping(t):
           t = t['in_type'],t['out_type']
         datatype = t[1] if t[1]!='DevVoid' else 'DevString'
         if 'bool' in datatype.lower(): formula = DEFAULT_BOOL()
@@ -196,10 +227,10 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
     path = path or os.path.abspath(os.path.dirname(filein))+'/'
     print('create_simulators:'+str((filein,instance,path,domains,tango_host)))
     ## THIS CHECK IS MANDATORY, YOU SHOULD EXPORT AND THEN LAUNCH IN DIFFERENT CALLS
-    assert tango_host in str(fandango.tango.get_tango_host()),'Use Controls02 for tests!!!'
+    assert tango_host in str(fd.tango.get_tango_host()),'Use Controls02 for tests!!!'
     devs,org = {},pickle.load(open(filein if '/' in filein else path+filein))
     done = []
-    all_devs = fandango.get_all_devices()
+    all_devs = fd.get_all_devices()
     
     print('>'*80)
     
@@ -211,7 +242,7 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
         k = ('/'.join(d.split('/')[-3:])).lower() #Removing tango host from the name
         for a,b in domains.items():
             if k.startswith(a): k = k.replace(a,b)
-        if not filters or fandango.matchCl(filters,d) or fandango.matchCl(filters,org[d].dev_class):
+        if not filters or fd.matchCl(filters,d) or fd.matchCl(filters,org[d].dev_class):
             devs[k] = t
             
     if override is not False:
@@ -236,30 +267,30 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
 
         if its_new or override: 
             print('writing ... %s(%s)'%(type(t),d))            
-            fandango.tango.add_new_device('%s/%s'%(server,instance_temp),klass,d)
+            fd.tango.add_new_device('%s/%s'%(server,instance_temp),klass,d)
             for p,v in t.props.items():
                 if not p.startswith('__'): #p not in ('DynamicCommands','DynamicStates','LoadFromFile','DevicesList') and 
-                    fandango.tango.put_device_property(d,p,v)         
+                    fd.tango.put_device_property(d,p,v)         
             #Overriding Dynamic* properties
             try:
-                fandango.tango.put_device_property(d,'LoadFromFile',path+'%s_attributes.txt'%t.dev_class)
-                fandango.tango.put_device_property(d,'DynamicAttributes',filter(bool,map(str.strip,open(path+'%s_attributes.txt'%t.dev_class).readlines())))
-                fandango.tango.put_device_property(d,'DynamicCommands',filter(bool,map(str.strip,open(path+'%s_commands.txt'%t.dev_class).readlines())))
-                fandango.tango.put_device_property(d,'DynamicStates',filter(bool,map(str.strip,open(path+'%s_states.txt'%t.dev_class).readlines())))
+                fd.tango.put_device_property(d,'LoadFromFile',path+'%s_attributes.txt'%t.dev_class)
+                fd.tango.put_device_property(d,'DynamicAttributes',filter(bool,map(str.strip,open(path+'%s_attributes.txt'%t.dev_class).readlines())))
+                fd.tango.put_device_property(d,'DynamicCommands',filter(bool,map(str.strip,open(path+'%s_commands.txt'%t.dev_class).readlines())))
+                fd.tango.put_device_property(d,'DynamicStates',filter(bool,map(str.strip,open(path+'%s_states.txt'%t.dev_class).readlines())))
             except: 
                 print('Unable to configure %s(%s) properties '%(d,t.dev_class))
                 #traceback.print_exc()
         
-        fandango.tango.put_device_property(d,'OFFSET',random.randint(0,len(devs)))
+        fd.tango.put_device_property(d,'OFFSET',random.randint(0,len(devs)))
         done.append(d)
 
-    exported = fandango.get_all_devices(exported=True)
+    exported = fd.get_all_devices(exported=True)
     update = [d for d in done if d in exported]
     print('Updating %d Devices ...'%len(update))
     for d in update:
-        if fandango.check_device(d):
+        if fd.check_device(d):
             print('Updating %s ...'%d)
-            try: fandango.get_device(d).updateDynamicAttributes()
+            try: fd.get_device(d).updateDynamicAttributes()
             except Exception,e: print(e)
         else:
             print('%s failed!'%d)
@@ -270,7 +301,7 @@ def create_simulators(filein,instance='',path='',domains={},tango_host='controls
 
 def run_dynamic_server(instance):
     print('run_dynamic_server:'+str(instance))
-    from fandango.dynamic import DynamicServer
+    from fd.dynamic import DynamicServer
     sys.argv = ['DynamicDS.py',instance,'-v2']
     print(sys.argv)
     pyds = DynamicServer(add_debug=False)
@@ -279,9 +310,9 @@ def run_dynamic_server(instance):
     
 def set_push_events(filein,period=3000,diff=1e-5):
     print('set_push_events(%s,%s,%s)'%(filein,period,diff))
-    devs = fandango.get_matching_devices(filein)
+    devs = fd.get_matching_devices(filein)
     if devs:
-        devs = dict((d,fandango.Struct({'attrs':fandango.get_device(d).get_attribute_list()})) for d in devs)
+        devs = dict((d,fd.Struct({'attrs':fd.get_device(d).get_attribute_list()})) for d in devs)
     else:
         devs = pickle.load(open(filein))
     for d,t in sorted(devs.items()):
@@ -302,7 +333,7 @@ def set_push_events(filein,period=3000,diff=1e-5):
 def delete_simulators(filein):
     #NOTE THIS METHOD SHOUL DELETE ONLY PYSIGNALSIMULATOR INSTANCES, NOT ANYTHING ELSE!
     raise 'NotImplementedYet!'
-    all_sims = fandango.Astor('*Simulator*/*').get_all_devices()
+    all_sims = fd.Astor('*Simulator*/*').get_all_devices()
     devs = [d for d in pickle.load(open(filein)) if d in all_sims]
     db = PyTango.Database()
     for d in devs:
