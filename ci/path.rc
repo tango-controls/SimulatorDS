@@ -1,0 +1,5 @@
+
+export PATH=/home/ubuntu/bin:/home/ubuntu/src/fandango/fandango/scripts:$PATH
+export SRC=/home/ubuntu/src
+export PYTHONPATH=$SRC/fandango:$SRC/panic:$SRC/vacca:$PYTHONPATH
+#TANGO_HOST= ... use uname -a to get the current full-qualified hostname
