@@ -1,0 +1,15 @@
+SimulatorDS/test-sim	test/sim/01	DynamicAttributes	MASTER=(VAR('PAR',VALUE),WATTR('test/sim/02/PAR',DIVIDE([VAR('PAR'),3.])),WATTR('test/sim/03/PAR',VAR('PAR')/2)) if WRITE else VAR('PAR',default=0)		
+			A=(VAR('P',VALUE),[WATTR(x,DIVIDE([VAR('P'),D])) for x in PROPERTY('Targets')]) if WRITE else VAR('P',default=0)		
+			B=VAR('FUN')(VAR('PAR'))		
+			C=DIVIDE([VAR('PAR'),3.])		
+			D=VAR('D',default=1,WRITE=True)		
+		DynamicCommands	DIVIDE=DevDouble(SPECTRUM(float,ARGS)[0]/ARGS[1])		
+		InitDevice	VAR('FUN',lambda x: x/2)		
+		Targets	test/sim/02/PAR		
+			test/sim/03/PAR		
+	test/sim/02	DynamicAttributes	PAR=VAR('P',default=0,WRITE=True)		
+		polled_attr	par		
+			250		
+	test/sim/03	DynamicAttributes	PAR=VAR('P',default=0,WRITE=True)		
+		polled_attr	par		
+			250		
