@@ -32,6 +32,8 @@ More on fandango.DynamicDS syntax:
 Examples
 ========
 
+See also: https://github.com/tango-controls/SimulatorDS/tree/master/examples
+
 DynamicAttributes property declaration
 --------------------------------------
 
