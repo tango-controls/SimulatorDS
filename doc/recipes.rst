@@ -130,6 +130,11 @@ DynamicStates::
 DynamicCommands::
 
   test_command=str(VAR('C',int(ARGS[0])) or VAR('C'))
+  
+Mixing write attribute, properties and commands in a single action
+------------------------------------------------------------------
+
+See https://github.com/tango-controls/SimulatorDS/blob/master/examples/write_attr_property_command.csv
 
 ----
 
