@@ -223,11 +223,15 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
 
     return(filein)
 
-def create_simulators(filein,instance='',path='',domains={},tango_host='controls02',filters='',override=True): #domains = {'wr/rf':'test/rf'}
+def create_simulators(filein,instance='',path='',domains={},
+        tango_host='controls02',filters='',override=True): 
+        #domains = {'wr/rf':'test/rf'}
     path = path or os.path.abspath(os.path.dirname(filein))+'/'
     print('create_simulators:'+str((filein,instance,path,domains,tango_host)))
     ## THIS CHECK IS MANDATORY, YOU SHOULD EXPORT AND THEN LAUNCH IN DIFFERENT CALLS
-    assert tango_host in str(fd.tango.get_tango_host()),'Use Controls02 for tests!!!'
+    assert tango_host in str(fd.tango.get_tango_host()),\
+                'Tango Host does not match!'
+    
     devs,org = {},pickle.load(open(filein if '/' in filein else path+filein))
     done = []
     all_devs = fd.get_all_devices()

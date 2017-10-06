@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 #    "$Name:  $";
-#    "$Header: /cvsroot/tango-ds/Simulators/SimulatorDS/SimulatorDS.py,v 1.4 2008/11/21 11:51:44 sergi_rubio Exp $";
+#    "$Header: /cvsroot/tango-ds/Simulators/SimulatorDS/SimulatorDS.py,v 1.4 
+#       2008/11/21 11:51:44 sergi_rubio Exp $";
 #=============================================================================
 #
 # file :        SimulatorDS.py
@@ -126,8 +127,13 @@ class SimulatorDS(DynamicDS):
     NAMES = [math,random,time,PyTango,PyTangoArchiving,
         DynamicAttribute,match,search,findall,wait,numpy,scipy,]
     OTHERS = dict((k,v) for k,v in 
-        [('fandango',fandango.functional),('np',numpy),('interpolate',interpolate)]+
-        [(f,getattr(fandango,f)) for f in dir(fandango.functional) if '2' in f or f.startswith('to')]
+        [('fandango',fandango.functional),
+         ('np',numpy),
+         #('PyTango',PyTango),
+         #('callbacks',fandango.callbacks),
+         ('interpolate',interpolate)]+
+        [(f,getattr(fandango,f)) for f in dir(fandango.functional) 
+            if '2' in f or f.startswith('to')]
         )
     
     #------------------------------------------------------------------
