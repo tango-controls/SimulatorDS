@@ -174,7 +174,7 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
             datatype,formula = 'DevDouble','NaN'
          
           else:
-            datatype = t.datatype if t.format=='SCALAR' else t.datatype.replace('Dev','DevVar')+'Array'
+            datatype = t.datatype if t.data_format=='SCALAR' else t.datatype.replace('Dev','DevVar')+'Array'
             if 'bool' in datatype.lower(): formula = DEFAULT_BOOL()
             elif 'state' in datatype.lower(): formula = DEFAULT_STATE(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
             elif 'string' in datatype.lower(): formula = DEFAULT_STRING(d=d,a=a,f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
@@ -224,8 +224,9 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
     return(filein)
 
 def create_simulators(filein,instance='',path='',domains={},
-        tango_host='controls02',filters='',override=True): 
+        server='SimulatorDS',tango_host='',filters='',override=True): 
         #domains = {'wr/rf':'test/rf'}
+        
     path = path or os.path.abspath(os.path.dirname(filein))+'/'
     print('create_simulators:'+str((filein,instance,path,domains,tango_host)))
     ## THIS CHECK IS MANDATORY, YOU SHOULD EXPORT AND THEN LAUNCH IN DIFFERENT CALLS
@@ -234,6 +235,7 @@ def create_simulators(filein,instance='',path='',domains={},
     
     devs,org = {},pickle.load(open(filein if '/' in filein else path+filein))
     done = []
+    
     all_devs = fd.get_all_devices()
     
     print('>'*80)
@@ -257,14 +259,16 @@ def create_simulators(filein,instance='',path='',domains={},
       else: override = False
       
     if not instance:
-      instance = raw_input('Enter your instance name for the simulated DynamicServer (use "instance-" to use multiple instances):')
+      instance = raw_input('Enter your instance name for the simulated server (use "instance-" to use multiple instances):')
+    elif '/' in instance:
+      server,instance = instance.split('/')
       
     print('>'*80)
 
     for d,t in sorted(devs.items()):
         t.dev_class = t.dev_class or d.split('/')[-1]
         klass = 'PyStateComposer' if t.dev_class == 'PyStateComposer' else 'SimulatorDS'
-        server = 'DynamicDS'
+
         instance_temp = '%s%s'%(instance,t.dev_class) if '-' in instance else instance
         print('%s/%s:%s , "%s" => %s '%(server,instance_temp,d,t.dev_class,klass))
         its_new = ('/'.join(('dserver',server,instance_temp))).lower() not in all_devs or d.lower() not in all_devs
@@ -352,7 +356,7 @@ def main(args):
       ('list','[main.py main_method]','export device/attribute lists from application into a file'),
       ('export','[attributes.txt]','export values from an attribute list into a .pck file'),
       ('generate','[...]','create the property files for simulators'),
-      ('load','[...]','create simulators from files'),
+      ('load','[pck,tango_host,domains]','create simulators from files'),
       ('play','[...]','run the simulators'),
       ('push','[...]','configure simulators event pushing'),
       )
@@ -370,7 +374,9 @@ def main(args):
   if check('generate'):
     filename = generate_class_properties(filename)
   if check('load'):
-    filename = create_simulators(args[0],domains=eval(args[1]))
+    filename = create_simulators(args[0],
+        tango_host=args[1],
+        domains=args[2:] and eval(args[1]) or {})
   if check('play'):
     run_dynamic_server(filename)
   if check('push'):
