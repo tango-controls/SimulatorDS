@@ -55,12 +55,6 @@ def split_server_by(server,rule=None):
         fd.tango.add_new_device(news[-1],k,d)
         
     return dict((k,news.count(k)) for k in set(news))
-        
-    
-            
-    
-            
-    
 
 def export_devices_from_application(*args):
     print('export_devices:'+str(args))
@@ -98,12 +92,39 @@ def export_devices_from_application(*args):
     print('*'*80)
     return(exported)
 
-def export_attributes_to_pck(filein='ui_exported_devices.txt',fileout='ui_attribute_values.pck'):
-    print('export_attributes:'+str((filein,fileout)))
-    if fd.isSequence(filein):
+def export_devices_from_sources(*files,**options):
+    """ Parses source files and returns devices
+    :param files: source files to inspect
+    :param check: return only existing devices
+    """
+    import re, fandango.tango as ft
+    matches = []
+    for n in files:
+        with open(n) as f:
+            txt = f.read()
+            matches.extend(re.findall(ft.retango,txt))
+    devs = [t for m in matches for t in m if '/' in t]
+
+    if options.get('check',None):
+        all_devs = ft.get_all_devices()
+        devs = [d for d in devs if d.lower() in all_devs]
+    return devs
+
+def export_attributes_to_pck(filein='ui_exported_devices.txt',
+                             fileout='ui_attribute_values.pck'):
+
+    print('export_attributes from:'+str((filein,fileout)))
+    assert fileout.endswith('.pck'), 'output must be a pickle file!'
+
+    all_devs = fd.tango.get_all_devices()
+    filein = fd.toList(filein)
+    if all(d.lower() in all_devs for d in filein):
         devs = filein
     else:
-        devs = map(str.strip,open(filein).readlines())
+        devs = export_devices_from_sources(*filein,check=True)
+        
+    print('devices to export: %s'%str(devs))
+        
     proxies = dict((d,PyTango.DeviceProxy(d)) for d in devs)
     devs = defaultdict(Struct)
 
@@ -224,13 +245,23 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
     return(filein)
 
 def create_simulators(filein,instance='',path='',domains={},
-        server='SimulatorDS',tango_host='',filters='',override=True): 
+        server='',tango_host='',filters='',override=True): 
         #domains = {'wr/rf':'test/rf'}
         
     path = path or os.path.abspath(os.path.dirname(filein))+'/'
     print('create_simulators:'+str((filein,instance,path,domains,tango_host)))
-    ## THIS CHECK IS MANDATORY, YOU SHOULD EXPORT AND THEN LAUNCH IN DIFFERENT CALLS
-    assert tango_host in str(fd.tango.get_tango_host()),\
+    files = fd.listdir(path)
+    if not any(f.endswith('_attributes.txt') for f in files):
+        q = raw_input('Property files do not exist yet,\n'
+            'Do you want to generate them? (y/n)')
+        if q.lower().startswith('y'):
+            cur = os.path.abspath(os.curdir)
+            os.chdir(path)
+            generate_class_properties(filein)
+            os.chdir(cur)
+    
+    ## CHECK IS MANDATORY, YOU SHOULD EXPORT AND SIMULATE IN DIFFERENT HOSTS
+    assert tango_host and tango_host in str(fd.tango.get_tango_host()),\
                 'Tango Host does not match!'
     
     devs,org = {},pickle.load(open(filein if '/' in filein else path+filein))
@@ -242,7 +273,7 @@ def create_simulators(filein,instance='',path='',domains={},
     
     if not filters:
       print('%d devices in %s: %s'%(len(org),filein,sorted(org.keys())))
-      filters=raw_input('Do you want to filter devices? [*/*/*]').lower()
+      filters=raw_input('Enter a filter for device names: [*/*/*]').lower()
       
     for d,t in org.items():
         k = ('/'.join(d.split('/')[-3:])).lower() #Removing tango host from the name
@@ -255,13 +286,19 @@ def create_simulators(filein,instance='',path='',domains={},
       dds = [d for d in devs if ('/'.join(d.split('/')[-3:])).lower() in all_devs]
       if dds:
         print('%d devices already exist: %s'%(len(dds),sorted(dds)))
-        override=raw_input('Do you want to override existing properties?').lower().startswith('y')
+        override=raw_input('Do you want to override existing properties? (y/n)'
+                ).lower().startswith('y')
       else: override = False
       
     if not instance:
       instance = raw_input('Enter your instance name for the simulated server (use "instance-" to use multiple instances):')
     elif '/' in instance:
       server,instance = instance.split('/')
+      
+    if not server:
+        server = raw_input(
+            'Enter your server name (SimulatorDS/DynamicDS): [SimulatorDS]') \
+                or 'SimulatorDS'
       
     print('>'*80)
 
@@ -281,10 +318,14 @@ def create_simulators(filein,instance='',path='',domains={},
                     fd.tango.put_device_property(d,p,v)         
             #Overriding Dynamic* properties
             try:
-                fd.tango.put_device_property(d,'LoadFromFile',path+'%s_attributes.txt'%t.dev_class)
-                fd.tango.put_device_property(d,'DynamicAttributes',filter(bool,map(str.strip,open(path+'%s_attributes.txt'%t.dev_class).readlines())))
-                fd.tango.put_device_property(d,'DynamicCommands',filter(bool,map(str.strip,open(path+'%s_commands.txt'%t.dev_class).readlines())))
-                fd.tango.put_device_property(d,'DynamicStates',filter(bool,map(str.strip,open(path+'%s_states.txt'%t.dev_class).readlines())))
+                fd.tango.put_device_property(d,'LoadFromFile',
+                    path+'%s_attributes.txt'%t.dev_class)
+                fd.tango.put_device_property(d,'DynamicAttributes',
+                    filter(bool,map(str.strip,open(path+'%s_attributes.txt'%t.dev_class).readlines())))
+                fd.tango.put_device_property(d,'DynamicCommands',
+                    filter(bool,map(str.strip,open(path+'%s_commands.txt'%t.dev_class).readlines())))
+                fd.tango.put_device_property(d,'DynamicStates',
+                    filter(bool,map(str.strip,open(path+'%s_states.txt'%t.dev_class).readlines())))
             except: 
                 print('Unable to configure %s(%s) properties '%(d,t.dev_class))
                 #traceback.print_exc()
@@ -309,10 +350,14 @@ def create_simulators(filein,instance='',path='',domains={},
 
 def run_dynamic_server(instance):
     print('run_dynamic_server:'+str(instance))
-    from fd.dynamic import DynamicServer
-    sys.argv = ['DynamicDS.py',instance,'-v2']
+    from fandango.dynamic import DynamicServer
+    if '/' in instance: 
+        server,instance = instance.split('/')
+    else:
+        server = 'SimulatorDS' #'DynamicDS'
+    sys.argv = [server,instance] #,'-v1']
     print(sys.argv)
-    pyds = DynamicServer(add_debug=False)
+    pyds = DynamicServer(server+'/'+instance,log='',add_debug=False)
     pyds.main()
     time.sleep(10.)
     
@@ -320,7 +365,8 @@ def set_push_events(filein,period=3000,diff=1e-5):
     print('set_push_events(%s,%s,%s)'%(filein,period,diff))
     devs = fd.get_matching_devices(filein)
     if devs:
-        devs = dict((d,fd.Struct({'attrs':fd.get_device(d).get_attribute_list()})) for d in devs)
+        devs = dict((d,fd.Struct(
+            {'attrs':fd.get_device(d).get_attribute_list()})) for d in devs)
     else:
         devs = pickle.load(open(filein))
     for d,t in sorted(devs.items()):
@@ -353,24 +399,38 @@ def main(args):
   print('Welcome to the generic simulation script')
   print('-'*80)
   cmd_list = (
-      ('list','[main.py main_method]','export device/attribute lists from application into a file'),
-      ('export','[attributes.txt]','export values from an attribute list into a .pck file'),
-      ('generate','[...]','create the property files for simulators'),
-      ('load','[pck,tango_host,domains]','create simulators from files'),
-      ('play','[...]','run the simulators'),
-      ('push','[...]','configure simulators event pushing'),
+      ('list','[main.py main_method]',
+            'export device/attribute lists from application into a file'),
+      ('export','[source.py attributes.txt output.pck]',
+            'export devices from source files into a .pck file'),
+      ('generate','[...]',
+            'create the property files for simulators'),
+      ('load','[pck tango_host domains]',
+            'create simulators from files'),
+      ('play','[...]',
+            'run the simulators'),
+      ('push','[...]',
+            'configure simulators event pushing'),
       )
+
   cmds = [t[0] for t in cmd_list]
-  assert args and len(args)>=2,'\n\nUsage:\n\tsimulation.py %s file_input/instance [main_method/polling_period/domain_alias]\n\n%s'%(
-      str(cmds),'\n'.join(map(str,cmd_list)))
+  if not args or len(args)<2 or not cmds:
+      print('\n\nUsage:\n\t'
+          'simulation.py %s file_input/instance '
+            '[main_method/polling_period/domain_alias]\n\n%s'%(
+                str(cmds),'\n'.join(map(str,cmd_list))))
+      sys.exit(1)
+  
   cmds = [a for a in args if any(c==a for c in cmds)]
   args = [a for a in args if a not in cmds]
   check = lambda s: s in str(cmds)
   filename = args[-1]
+  
   if check('list'):
     filename = export_devices_from_application(*args[:2])
   if check('export'):
-    filename = export_attributes_to_pck(filename)
+    if len(args)>=1: args = (args[:-1],filename)
+    filename = export_attributes_to_pck(*args)
   if check('generate'):
     filename = generate_class_properties(filename)
   if check('load'):
