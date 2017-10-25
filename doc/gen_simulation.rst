@@ -66,6 +66,8 @@ And test it against your application::
   git clone https://git..../XGUI
   cd XGUI && python main.py
   
+----
+  
 Using gen_simulation from ipython
 =================================
 
