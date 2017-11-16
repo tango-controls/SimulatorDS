@@ -26,10 +26,13 @@ You can use two methods, either write a file with the list of devices to export
 or directly parse the source files for hardcoded device names.
 
 ::
+
   ssh prod01
   cd /tmp/
+  
   #Run gen_simulation, parse sources, and export to .pck
   gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck
+  
   #Copy the result to your simulation environment
   scp /tmp/xgui_attributes.pck user@sim03:/home/user/test/
 
@@ -59,7 +62,7 @@ Launch the simulation
  
 Now you're ready to launch the simulation::
 
-  gen_simulation.py xgui_test &
+  gen_simulation.py play xgui_test &
  
 And test it against your application::
 
@@ -80,7 +83,7 @@ On the real system side
 
 The first step is to write the list of devices to export into a .txt file::
 
-  # fandango.sh find_devices "elin/*/*" > elinac_devices.txt
+  # fandango -l find_devices "elin/*/*" > elinac_devices.txt
   
 Then, from python export all the attribute values and config to .pck files:
 
