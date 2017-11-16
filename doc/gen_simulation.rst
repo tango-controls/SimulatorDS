@@ -30,7 +30,11 @@ or directly parse the source files for hardcoded device names.
   ssh prod01
   cd /tmp/
   
-  #Run gen_simulation, parse sources, and export to .pck
+  # Export devices to a file
+  fandango -l find_devices "elin/*/*" > devices.txt
+  gen_simulation.py export devices.txt xgui_attributes.pck
+  
+  # Or parse sources with, parse sources, and export to .pck
   gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck
   
   #Copy the result to your simulation environment
@@ -43,7 +47,7 @@ Generate simulators in your test environment
 
   cd /home/user/test #Or wherever
   #gen_simulation load [pickle file] [tango db host]
-  gen_simulation.py load xgui_attributes.pck sim03
+  gen_simulation.py load xgui_attributes.pck sim03.domain.com
   
 When prompted, the most common options are::
 
@@ -69,6 +73,10 @@ And test it against your application::
   git clone https://git..../XGUI
   cd XGUI && python main.py
   
+You may configure events for your devices:
+
+  gen_simulation.py push "elinac/*/*" 3000
+  
 ----
   
 Using gen_simulation from ipython
