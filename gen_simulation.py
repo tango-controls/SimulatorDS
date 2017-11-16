@@ -295,16 +295,25 @@ def create_simulators(filein,instance='',path='',domains={},
     elif '/' in instance:
       server,instance = instance.split('/')
       
-    if not server:
+    keepclass = 'y' in raw_input('Keep original Class names?').lower()
+    
+    if keepclass:
+        server = 'SimulatorDS'
+    elif not server:
         server = raw_input(
             'Enter your server name (SimulatorDS/DynamicDS): [SimulatorDS]') \
                 or 'SimulatorDS'
-      
+        
     print('>'*80)
 
     for d,t in sorted(devs.items()):
         t.dev_class = t.dev_class or d.split('/')[-1]
-        klass = 'PyStateComposer' if t.dev_class == 'PyStateComposer' else 'SimulatorDS'
+        if t.dev_class == 'PyStateComposer':
+            klass = t.dev_class
+        elif keepclass:
+            klass = t.dev_class+'_sim'
+        else:
+            klass = 'SimulatorDS'
 
         instance_temp = '%s%s'%(instance,t.dev_class) if '-' in instance else instance
         print('%s/%s:%s , "%s" => %s '%(server,instance_temp,d,t.dev_class,klass))
@@ -353,34 +362,51 @@ def run_dynamic_server(instance):
     from fandango.dynamic import DynamicServer
     if '/' in instance: 
         server,instance = instance.split('/')
+        sys.argv = [server,instance] #,'-v1']
+        print(sys.argv)
+        pyds = DynamicServer(server+'/'+instance,log='',add_debug=False)
+        pyds.main()
+        
     else:
         server = 'SimulatorDS' #'DynamicDS'
-    sys.argv = [server,instance] #,'-v1']
-    print(sys.argv)
-    pyds = DynamicServer(server+'/'+instance,log='',add_debug=False)
-    pyds.main()
+        import SimulatorDS
+        SimulatorDS.main(['SimulatorDS',instance])
+        
     time.sleep(10.)
     
 def set_push_events(filein,period=3000,diff=1e-5):
     print('set_push_events(%s,%s,%s)'%(filein,period,diff))
     devs = fd.get_matching_devices(filein)
+    for d in devs[:]:
+        if not check_device(d):
+            q = raw_input('Unable to configure events for %s, '
+                          'do you wish to continue?'%d).lower()
+            if 'y' not in q: return
+            devs.remove(d)
+            
     if devs:
         devs = dict((d,fd.Struct(
             {'attrs':fd.get_device(d).get_attribute_list()})) for d in devs)
     else:
         devs = pickle.load(open(filein))
     for d,t in sorted(devs.items()):
-      print('Setting events (%s,%s) for %s'%(period,diff,d))
-      dp = PyTango.DeviceProxy(d)
-      for a in t.attrs:
-        dp.poll_attribute(a,int(period))
-        if period>0:
-          ac = dp.get_attribute_config(a)
-          cei = PyTango.ChangeEventInfo()
-          cei.rel_change = str(diff)
-          ac.events.ch_event = cei
-          try: dp.set_attribute_config(ac)
-          except: pass
+        print('Setting events (%s,%s) for %s'%(period,diff,d))
+        try:
+            dp = PyTango.DeviceProxy(d)
+            for a in t.attrs:
+                dp.poll_attribute(a,int(period))
+                if period>0:
+                    ac = dp.get_attribute_config(a)
+                    cei = PyTango.ChangeEventInfo()
+                    cei.rel_change = str(diff)
+                    ac.events.ch_event = cei
+                    try: dp.set_attribute_config(ac)
+                    except: pass
+        except:
+            q = raw_input('Unable to configure events for %s, '
+                          'do you wish to continue?'%d)
+            if 'y' not in q.lower():
+                break
     print('done')
       
         
@@ -399,13 +425,15 @@ def main(args):
   print('Welcome to the generic simulation script')
   print('-'*80)
   cmd_list = (
+      ('find','[regexp filename]',
+            'TODO: finds matching devices and stores them in filename.'),
       ('list','[main.py main_method]',
             'export device/attribute lists from application into a file'),
       ('export','[source.py attributes.txt output.pck]',
             'export devices from source files into a .pck file'),
       ('generate','[...]',
             'create the property files for simulators'),
-      ('load','[pck tango_host domains]',
+      ('load','[file.pck tango_db_host [domains] ]',
             'create simulators from files'),
       ('play','[...]',
             'run the simulators'),
@@ -414,6 +442,8 @@ def main(args):
       )
 
   cmds = [t[0] for t in cmd_list]
+  cmds = [a for a in args if a in cmds]
+  
   if not args or len(args)<2 or not cmds:
       print('\n\nUsage:\n\t'
           'simulation.py %s file_input/instance '
@@ -421,27 +451,32 @@ def main(args):
                 str(cmds),'\n'.join(map(str,cmd_list))))
       sys.exit(1)
   
-  cmds = [a for a in args if any(c==a for c in cmds)]
   args = [a for a in args if a not in cmds]
   check = lambda s: s in str(cmds)
   filename = args[-1]
   
   if check('list'):
     filename = export_devices_from_application(*args[:2])
-  if check('export'):
+
+  elif check('export'):
     if len(args)>=1: args = (args[:-1],filename)
     filename = export_attributes_to_pck(*args)
-  if check('generate'):
+
+  elif check('generate'):
     filename = generate_class_properties(filename)
-  if check('load'):
+
+  elif check('load'):
     filename = create_simulators(args[0],
         tango_host=args[1],
         domains=args[2:] and eval(args[1]) or {})
-  if check('play'):
+
+  elif check('play'):
     run_dynamic_server(filename)
-  if check('push'):
+
+  elif check('push'):
     set_push_events(*args) #filename,period,diff
     #if len(args)>2: run_app(*args[:-1])
+    
   print('%s done'%str(cmds))
   sys.exit()
 
