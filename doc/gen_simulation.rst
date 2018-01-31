@@ -26,6 +26,7 @@ You can use two methods, either write a file with the list of devices to export
 or directly parse the source files for hardcoded device names.
 
 ::
+
   ssh prod01
   cd /tmp/
   #Run gen_simulation, parse sources, and export to .pck
