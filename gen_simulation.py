@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os,sys,taurus,threading,pickle,time,traceback,random
+import os,sys,threading,pickle,time,traceback,random
 import PyTango,fandango as fd
 from fandango import check_device,check_attribute,Struct,defaultdict
 
@@ -80,6 +80,7 @@ def export_devices_from_application(*args):
         print(timeout-i)
         time.sleep(1.)
 
+    import taurus
     factory = taurus.Factory()
     print('*'*80)
     for f,l in [(exported,factory.getExistingDevices()),(exported2,factory.getExistingAttributes())]:
@@ -262,7 +263,7 @@ def create_simulators(filein,instance='',path='',domains={},
     
     ## CHECK IS MANDATORY, YOU SHOULD EXPORT AND SIMULATE IN DIFFERENT HOSTS
     assert tango_host and tango_host in str(fd.tango.get_tango_host()),\
-                'Tango Host does not match!'
+                'Tango Host (%s!=%s) does not match!'%(tango_host,fd.tango.get_tango_host())
     
     devs,org = {},pickle.load(open(filein if '/' in filein else path+filein))
     done = []
