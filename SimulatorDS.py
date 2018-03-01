@@ -269,7 +269,16 @@ class SimulatorDSClass(DynamicDSClass):
 def main(args=None):
     try:
         py = PyTango.Util(args or sys.argv)
-        py.add_TgClass(SimulatorDSClass,SimulatorDS,'SimulatorDS')
+        db = py.get_database()
+        ds = py.get_ds_name()
+        klasses = db.get_server_class_list(py.get_ds_name())
+        for k in klasses:
+            d = locals()[k] = type(k,(SimulatorDS,),{})
+            dc = locals()[k+'Class'] = type(k+'Class',(SimulatorDSClass,),{})
+            py.add_TgClass(dc,d,k)
+
+        if 'SimulatorDS' not in klasses:
+            py.add_TgClass(SimulatorDSClass,SimulatorDS,'SimulatorDS')
         #py.add_TgClass(PySignalSimulatorClass,PySignalSimulator,'PySignalSimulator')
 
         U = PyTango.Util.instance()
