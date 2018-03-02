@@ -3,7 +3,7 @@ This is a simulation suite for PyTango, it allows to create dynamic device serve
 
 To replicate a running system in few minutes see the gen_simulation script: https://github.com/tango-controls/SimulatorDS/blob/master/doc/gen_simulation.rst
 
-To build your own simulations, see the SimulatorDS user guide: https://github.com/tango-controls/SimulatorDS/blob/master/doc/recipes.rst
+To build your own simulations, see the SimulatorDS user guide: https://github.com/tango-controls/SimulatorDS/blob/master/doc/SimulatorDS.rst
 
 It requires fandango: https://github.com/tango-controls/fandango
 
