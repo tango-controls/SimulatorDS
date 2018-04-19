@@ -1,6 +1,6 @@
-==============================================
-Simplified Steps to generate a fast simulation
-==============================================
+====================================================
+Simulate a running Tango Control System in Few Steps
+====================================================
 
 The process will assume that you want to simulate the "XGUI" application, 
 real devices are running on "prod01" host and simulation will run on "sim03" host.
