@@ -423,8 +423,7 @@ def delete_simulators(filein):
         db.delete(d)
         
 def main(args):
-  print('Welcome to the generic simulation script')
-  print('-'*80)
+  print('\nWelcome to the generic simulation script\n'+'-'*80)
   cmd_list = (
       ('find','[regexp filename]',
             'TODO: finds matching devices and stores them in filename.'),
@@ -446,9 +445,9 @@ def main(args):
   cmds = [a for a in args if a in cmds]
   
   if not args or len(args)<2 or not cmds:
-      print('\n\nUsage:\n\t'
+      print('\nUsage:\n\t'
           'simulation.py %s file_input/instance '
-            '[main_method/polling_period/domain_alias]\n\n%s'%(
+            '[main_method/polling_period/domain_alias]\n\n%s\n\n'%(
                 str(cmds),'\n'.join(map(str,cmd_list))))
       sys.exit(1)
   

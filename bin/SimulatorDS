@@ -4,6 +4,14 @@
 # srubio@cells.es, 2016
 
 DS=$(basename $0)
+DSPATH=$(python -c "import imp;print(imp.find_module('${DS}')[1])" 2>/dev/null)
+
+if [ $(echo $1 | grep "\-\-gen") ] ; then
+  cd $DSPATH
+  shift 1
+  python gen_simulation.py $*
+  exit 0
+fi
 
 if [ $(echo $1 | grep "/" ) ] ; then
  IFS='/' read -r DS INSTANCE <<< "$1"
@@ -16,8 +24,6 @@ DSORB=$(python -c "import PyTango;print(PyTango.Database().get_property('ORBendP
 if [ "$DSORB" ] ; then
  DSORB="-ORBendPoint $DSORB"
 fi
-
-DSPATH=$(python -c "import imp;print(imp.find_module('${DS}')[1])" 2>/dev/null)
 
 if [ ! "$DSPATH" ] ; then
  DSPATH=$(python -c "import imp;print(imp.find_module('fandango')[1])")
@@ -35,7 +41,16 @@ echo "Launching $DSPATH/$DS $INSTANCE at $DSORB"
 # TODO: if it is mandatory to be in the module path 
 cd ${DSPATH}
 
-if [ $(which screen 2>/dev/null) ] ; then
+if [ "$(echo $2 | grep 'v[0-9]')" ] ; then
+  LOGV=$2
+else
+  LOGV=""
+fi
+
+## Using screen to launch the device in a background shell
+# Use --attach as last option to run it in foreground
+# Use --noscreen to launch it directly
+if [ ! "$(echo $* | grep noscreen)" ] && [ $(which screen 2>/dev/null) ] ; then
  if [ ! "$(echo $* | grep attach)" ] ; then
   echo "run detached"
   CMD="screen -dm -S $DS-$INSTANCE "
@@ -46,6 +61,6 @@ else
   CMD=""
 fi
 
-CMD="${CMD} python ${DSPATH}/$DS.py $INSTANCE $2 $DSORB"
+CMD="${CMD} python ${DSPATH}/$DS.py $INSTANCE $LOGV $DSORB"
 echo $CMD
 $CMD
