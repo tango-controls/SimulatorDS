@@ -2,8 +2,30 @@
 Simulate a running Tango Control System in Few Steps
 ====================================================
 
-The process will assume that you want to simulate the "XGUI" application, 
-real devices are running on "prod01" host and simulation will run on "sim03" host.
+What is a SimulatorDS
+=====================
+
+A SimulatorDS Tango Device Server is a device that returns attribute values evaluated
+by python formulas instead of reading/writing attributes from hardware.
+
+The formulas for each simulator attribute, device or command can be stored in the Tango Database 
+(as device properties) or as text files.
+
+The declaration of formulas can be done directly by user (see SimulatorDS documentation), but this
+how-to will help to generate them automatically. It will be done generating some template .txt
+files for each class that wants to be simulated.
+
+The .txt files will can then be copied to the tango database as device properties. This optional step
+will allow the control engineer to tune or adapt the formulas to each device that is exported for the same class.
+
+For example, all simulated PLC's may have the same commands or digital states, but the offset
+of the temperatures can be configured to vary on different time cycles.
+
+Creating the Simulators
+=======================
+
+The process will assume that you want to simulate the "XGUI" application, that access some
+real Tango devices that are running on "prod01" host. The simulation instead will run on "sim03" host.
 
 It's also assumed that fandango is installed and gen_simulation.py script is in your path.
 
@@ -78,6 +100,12 @@ Now, copy this configuration file to your test environment:
 2. Generate simulators in your test environment
 -----------------------------------------------
 
+When loading the exported configuration you will be required to write the
+name of the hostname of your TESTING Tango Database.
+
+This name must be exactly equal to your TANGO_HOST environment variable, it is asked
+to ensure that you're not overriding the production database by mistake.
+
 ::
 
   cd /home/user/test #Or wherever
@@ -86,6 +114,8 @@ Now, copy this configuration file to your test environment:
   
 When prompted, the most common options are::
 
+  Enter a filter for device names: [*/*/*] [enter]
+  
   generate property files? yes
   filter classes? [enter]
   filter devices? [enter]
