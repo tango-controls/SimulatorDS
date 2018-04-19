@@ -21,29 +21,62 @@ The steps to follow will be:
 Using gen_simulation from bash
 ==============================
 
-Export attributes from your production host
--------------------------------------------
+1. Export attributes from your production host
+----------------------------------------------
 
-You can use two methods, either write a file with the list of devices to export
-or directly parse the source files for hardcoded device names.
+We will use "gen_simulation.py export"  to read the configuration and attribute values 
+of a list of devices and generate a pickle file (.pck) that can be easily copied 
+to a testing environment.
+
+First, enter login to your Tango control system host:
 
 ::
 
   ssh prod01
-  cd /tmp/
+  mkdir sim/
+  cd sim/
+
+You can use several methods:
+
+ * pass the list of devices to the script and the pickle filename as last argument:
+ 
+ ::
+ 
+  gen_simulation.py sr02/vc/eps-plc-01 sr02/vc/mir-01 sr02_plcs.pck
   
+ * parse your GUI source files for hardcoded device names.
+
+::
+
+  gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck  
+
+ * find the list of devices using fandango and write it to a file so it can be parsed:
+ 
+ ::
+ 
   # Export devices to a file
   fandango -l find_devices "elin/*/*" > devices.txt
+  
+  # Edit the list if needed
+  vi devices.txt
+  
+  # Then export all the devices configuration to a pickle file
   gen_simulation.py export devices.txt xgui_attributes.pck
-  
-  # Or parse sources with, parse sources, and export to .pck
-  gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck
-  
-  #Copy the result to your simulation environment
+ 
+
+
+In all cases you'll obtain a pickle file (.pck) containing all
+the attribute configuration of the selected devices.
+
+Now, copy this configuration file to your test environment:
+
+::
+
   scp /tmp/xgui_attributes.pck user@sim03:/home/user/test/
 
-Generate simulators in your test environment
---------------------------------------------
+
+2. Generate simulators in your test environment
+-----------------------------------------------
 
 ::
 
