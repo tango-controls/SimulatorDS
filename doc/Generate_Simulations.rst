@@ -2,10 +2,12 @@
 Simplified Steps to generate a fast simulation
 ==============================================
 
-The process will assume that you want to simulate the XGUI application, 
-real devices are running on prod01 host and simulation will run on sim03 host.
+The process will assume that you want to simulate the "XGUI" application, 
+real devices are running on "prod01" host and simulation will run on "sim03" host.
 
-It's also assumed that fandango is installed and gen_simulation.py is in your path.
+It's also assumed that fandango is installed and gen_simulation.py script is in your path.
+
+  NOTE: "gen_simulation.py [args]" can also be called as "SimulatorDS --gen [args]"
 
 The steps to follow will be:
 
