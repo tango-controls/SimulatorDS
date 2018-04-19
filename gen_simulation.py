@@ -3,6 +3,7 @@
 import os,sys,threading,pickle,time,traceback,random
 import PyTango,fandango as fd
 from fandango import check_device,check_attribute,Struct,defaultdict
+import fandango.tango as ft
 
 DEFAULT_STATE = lambda c=None,d=None,a=None,f='ON': "%s"%f
 DEFAULT_WRITE = lambda c=None,d=None,a=None,f=None: "VAR('%s',default=%s) if not WRITE else VAR('%s',VALUE)"%(a,f,a)
@@ -99,8 +100,12 @@ def export_devices_from_sources(*files,**options):
     :param check: return only existing devices
     """
     import re, fandango.tango as ft
+    import os.path
     matches = []
     for n in files:
+        print(n)
+        print(os.path.abspath(n))
+        
         with open(n) as f:
             txt = f.read()
             matches.extend(re.findall(ft.retango,txt))
@@ -119,7 +124,8 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
 
     all_devs = fd.tango.get_all_devices()
     filein = fd.toList(filein)
-    if all(d.lower() in all_devs for d in filein):
+    if all(ft.get_normal_name(ft.get_dev_name(d.lower()))
+           in all_devs for d in filein):
         devs = filein
     else:
         devs = export_devices_from_sources(*filein,check=True)
@@ -146,26 +152,33 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
          obj.attrs[a] = fd.tango.export_attribute_to_dict(d,a,as_struct=True)
       
     pickle.dump(devs,open(fileout,'w'))
+    print('\n%s has been generated, now copy it to your test environment [host] and'
+          ' execute:\n\n\tpython gen_simulation.py load %s [tango test_db host]\n'
+          % (fileout,fileout))
+          
     return(fileout)
 
-def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
+def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
+                              classnames = []):
   
     print('generate_class_properties:'+str(filein))
     devs = pickle.load(open(filein))
 
     classes = defaultdict(Struct)
-    print('classes in %s are: %s'%(filein,sorted(set(s.dev_class for s in devs.values()))))
-    filters=raw_input('Do you want to filter out some classes? [PyStateComposer]') or 'PyStateComposer'
+    if not classnames:
+        print('classes in %s are: %s'%(filein,sorted(set(s.dev_class for s in devs.values()))))
+        filters=raw_input('Do you want to filter out some classes? [PyStateComposer]') or 'PyStateComposer'
+    else:
+        filters = [s.dev_class for s in devs.values() if s.dev_class not in classnames]
     for d,s in devs.items():
-     if s.dev_class in filters: continue
-     classes[s.dev_class].attrs = {}
-     classes[s.dev_class].comms = {}
-     classes[s.dev_class].values = defaultdict(set)
+        if s.dev_class in filters: continue
+        classes[s.dev_class].attrs = {}
+        classes[s.dev_class].comms = {}
+        classes[s.dev_class].values = defaultdict(set)
      
     for d,s in devs.items():
 
-      if s.dev_class in filters: 
-        continue
+      if s.dev_class in filters: continue
       
       for a,t in s.attrs.items():
         t['datatype'] = t.get('data_type','DevDouble')
@@ -227,19 +240,19 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False):
       print('\nWriting %s attributes ([%d])\n'%(k,len(t.attrs)))
       f = open('%s_attributes.txt'%k,'w')
       for a in sorted(t.attrs.values()):
-        print('%s'%a)
+        #print('%s'%a)
         f.write('%s\n'%a)
       f.close()
       print('\nWriting %s commands ([%d])\n'%(k,len(t.comms)))
       f = open('%s_commands.txt'%k,'w')
       for a in sorted(t.comms.values()):
-        print('%s'%a)
+        #print('%s'%a)
         f.write('%s\n'%a)
       f.close()
       print('\nWriting %s states ([%d])\n'%(k,len(t.states)))
       f = open('%s_states.txt'%k,'w')
       for a in t.states:
-        print('%s'%a)
+        #print('%s'%a)
         f.write('%s\n'%a)
       f.close()  
 
@@ -251,15 +264,8 @@ def create_simulators(filein,instance='',path='',domains={},
         
     path = path or os.path.abspath(os.path.dirname(filein))+'/'
     print('create_simulators:'+str((filein,instance,path,domains,tango_host)))
+    print()
     files = fd.listdir(path)
-    if not any(f.endswith('_attributes.txt') for f in files):
-        q = raw_input('Property files do not exist yet,\n'
-            'Do you want to generate them? (y/n)')
-        if q.lower().startswith('y'):
-            cur = os.path.abspath(os.curdir)
-            os.chdir(path)
-            generate_class_properties(filein)
-            os.chdir(cur)
     
     ## CHECK IS MANDATORY, YOU SHOULD EXPORT AND SIMULATE IN DIFFERENT HOSTS
     assert tango_host and tango_host in str(fd.tango.get_tango_host()),\
@@ -274,7 +280,7 @@ def create_simulators(filein,instance='',path='',domains={},
     
     if not filters:
       print('%d devices in %s: %s'%(len(org),filein,sorted(org.keys())))
-      filters=raw_input('Enter a filter for device names: [*/*/*]').lower()
+      filters=raw_input('\nEnter a filter for device names: [*/*/*]').lower()
       
     for d,t in org.items():
         k = ('/'.join(d.split('/')[-3:])).lower() #Removing tango host from the name
@@ -287,27 +293,41 @@ def create_simulators(filein,instance='',path='',domains={},
       dds = [d for d in devs if ('/'.join(d.split('/')[-3:])).lower() in all_devs]
       if dds:
         print('%d devices already exist: %s'%(len(dds),sorted(dds)))
-        override=raw_input('Do you want to override existing properties? (y/n)'
+        override=raw_input(
+            '\nDo you want to override existing properties (y/[n])? '
                 ).lower().startswith('y')
       else: override = False
       
-    if not instance:
-      instance = raw_input('Enter your instance name for the simulated server (use "instance-" to use multiple instances):')
+    if not instance:          
+        instance = raw_input('\nEnter your instance name for the simulated servers:')
+        
+        multiinst = raw_input('\nDo you want to split Simulators in several servers,'
+          'one for each class (y/[n])? ').lower().startswith('y')
+        if multiinst: 
+            instance += '-'
+        else:
+            instance.strip('-')
+            
     elif '/' in instance:
       server,instance = instance.split('/')
       
-    keepclass = 'y' in raw_input('Keep original Class names?').lower()
+    keepclass = 'y' in raw_input(
+        '\nKeep original Class names (if not, all devices will be '
+        'generated as SimulatorDS) (y/[n])? ').lower()
     
     if keepclass:
         server = 'SimulatorDS'
     elif not server:
         server = raw_input(
-            'Enter your server name (SimulatorDS/DynamicDS): [SimulatorDS]') \
+            '\nEnter your server name (SimulatorDS/DynamicDS): [SimulatorDS]') \
                 or 'SimulatorDS'
         
     print('>'*80)
+    klassdone = []
+    instances = set()
 
     for d,t in sorted(devs.items()):
+        print('\n')
         t.dev_class = t.dev_class or d.split('/')[-1]
         if t.dev_class == 'PyStateComposer':
             klass = t.dev_class
@@ -317,28 +337,71 @@ def create_simulators(filein,instance='',path='',domains={},
             klass = 'SimulatorDS'
 
         instance_temp = '%s%s'%(instance,t.dev_class) if '-' in instance else instance
-        print('%s/%s:%s , "%s" => %s '%(server,instance_temp,d,t.dev_class,klass))
+        instances.add(instance_temp)
+        
         its_new = ('/'.join(('dserver',server,instance_temp))).lower() not in all_devs or d.lower() not in all_devs
+        
+        orgklass = t.dev_class
+        shortname = ft.get_normal_name(d).replace('/','_')
+
+        desc = [f for f in (orgklass+'_attributes.txt',
+                            shortname+'_attributes.txt')
+                if f in files]
+
+        if orgklass not in klassdone:
+            print('*'*80 + '\nChecking %s Tango Class ... ' % orgklass)
+            if desc:
+                q = raw_input('\nProperty files for Tango class %s already exist:\n [%s],\n'
+                'Do you want to regenerate them (y/[n])? '%(orgklass,desc))
+            else: 
+                q = 'y'
+            if q.lower().startswith('y'):
+                cur = os.path.abspath(os.curdir)
+                os.chdir(path)
+                generate_class_properties(filein,classnames=[orgklass])
+                os.chdir(cur)        
+            klassdone.append(orgklass)
 
         if its_new or override: 
-            print('writing ... %s(%s)'%(type(t),d))            
+            print('\n' + '*'*80)
+            print('%s/%s:%s , "%s" => %s '%(server,instance_temp,d,t.dev_class,klass))
+            print('Creating new Tango Device %s of class %s in server %s/%s' % 
+                  (d,klass,server,instance_temp))
+            print()
+                        
             fd.tango.add_new_device('%s/%s'%(server,instance_temp),klass,d)
+
+            t.props['LoadFromFile'] = path+'%s_attributes.txt'%t.dev_class
             for p,v in t.props.items():
-                if not p.startswith('__'): #p not in ('DynamicCommands','DynamicStates','LoadFromFile','DevicesList') and 
+                if not p.startswith('__'): 
+                    #p not in ('DynamicCommands','DynamicStates','LoadFromFile','DevicesList') and 
                     fd.tango.put_device_property(d,p,v)         
+                    print('\tAdded property: %s/%s [%d]' % (d,p,len(v or [])))
+                
+            ov_dynattrs = not raw_input(
+                '%s attribute formulas will be loaded from:\n\t%s\n\nDo '
+                'you want to copy them also to Tango DB so you can tune them '
+                'manually ([y]/n)? ' % (d,t.props['LoadFromFile'])
+                    ).lower().startswith('n')
+                    
             #Overriding Dynamic* properties
+            def load_prop_from_file(d,prop,f,path):
+                v = filter(bool,map(str.strip,open(f).readlines()))
+                fd.tango.put_device_property(d,prop,v)
+                print('\tAdded property: %s/%s [%d] from %s' 
+                      % (d,prop,len(v or []),f))
             try:
-                fd.tango.put_device_property(d,'LoadFromFile',
-                    path+'%s_attributes.txt'%t.dev_class)
-                fd.tango.put_device_property(d,'DynamicAttributes',
-                    filter(bool,map(str.strip,open(path+'%s_attributes.txt'%t.dev_class).readlines())))
-                fd.tango.put_device_property(d,'DynamicCommands',
-                    filter(bool,map(str.strip,open(path+'%s_commands.txt'%t.dev_class).readlines())))
-                fd.tango.put_device_property(d,'DynamicStates',
-                    filter(bool,map(str.strip,open(path+'%s_states.txt'%t.dev_class).readlines())))
+                if ov_dynattrs:
+                    load_prop_from_file(d,'DynamicAttributes',
+                        path+'%s_attributes.txt'%t.dev_class,path)
+                load_prop_from_file(d,'DynamicCommands',
+                    path+'%s_commands.txt'%t.dev_class,path)
+                load_prop_from_file(d,'DynamicStates',
+                    path+'%s_states.txt'%t.dev_class,path)
             except: 
                 print('Unable to configure %s(%s) properties '%(d,t.dev_class))
-                #traceback.print_exc()
+                traceback.print_exc()
+                print()
         
         fd.tango.put_device_property(d,'OFFSET',random.randint(0,len(devs)))
         done.append(d)
@@ -356,6 +419,11 @@ def create_simulators(filein,instance='',path='',domains={},
         time.sleep(.2)
     print('%d devices creation done'%len(done))
     print(done[0],exported[0])
+    s = '\n\nTo start the simulators, use any of these commands:\n'
+    for i in instances:
+        s += ('\n\tpython gen_simulation.py play %s\n'
+        '\n\tSimulatorDS %s\n'%(i,i))
+    print(s)
     return instance
 
 def run_dynamic_server(instance):

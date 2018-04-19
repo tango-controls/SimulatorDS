@@ -7,9 +7,8 @@ DS=$(basename $0)
 DSPATH=$(python -c "import imp;print(imp.find_module('${DS}')[1])" 2>/dev/null)
 
 if [ $(echo $1 | grep "\-\-gen") ] ; then
-  cd $DSPATH
   shift 1
-  python gen_simulation.py $*
+  python $DSPATH/gen_simulation.py $*
   exit 0
 fi
 
