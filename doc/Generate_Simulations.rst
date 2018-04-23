@@ -52,38 +52,38 @@ to a testing environment.
 
 First, enter login to your Tango control system host:
 
-::
+.. ::
 
-  ssh prod01
-  mkdir sim/
-  cd sim/
+ ssh prod01
+ mkdir sim/
+ cd sim/
 
 You can use several methods:
 
  * pass the list of devices to the script and the pickle filename as last argument:
  
- ::
+.. ::
  
-  gen_simulation.py sr02/vc/eps-plc-01 sr02/vc/mir-01 sr02_plcs.pck
+ gen_simulation.py sr02/vc/eps-plc-01 sr02/vc/mir-01 sr02_plcs.pck
   
  * parse your GUI source files for hardcoded device names.
 
-::
+.. ::
 
-  gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck  
+ gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck  
 
  * find the list of devices using fandango and write it to a file so it can be parsed:
  
- ::
+ .. ::
  
-  # Export devices to a file
-  fandango -l find_devices "elin/*/*" > devices.txt
+   # Export devices to a file
+   fandango -l find_devices "elin/*/*" > devices.txt
   
-  # Edit the list if needed
-  vi devices.txt
+   # Edit the list if needed
+   vi devices.txt
   
-  # Then export all the devices configuration to a pickle file
-  gen_simulation.py export devices.txt xgui_attributes.pck
+   # Then export all the devices configuration to a pickle file
+   gen_simulation.py export devices.txt xgui_attributes.pck
  
 
 
@@ -92,9 +92,9 @@ the attribute configuration of the selected devices.
 
 Now, copy this configuration file to your test environment:
 
-::
+.. ::
 
-  scp /tmp/xgui_attributes.pck user@sim03:/home/user/test/
+   scp /tmp/xgui_attributes.pck user@sim03:/home/user/test/
 
 
 2. Generate simulators in your test environment
@@ -114,14 +114,17 @@ to ensure that you're not overriding the production database by mistake.
   
 When prompted, the most common options are::
 
-  Enter a filter for device names: [*/*/*] [enter]
+.. ::
+
+  Enter a filter for device names: [*/*/*]
+  Enter your instance name for the simulated servers:
+  Do you want to split Simulators in several servers,one for each class (y/[n])?
+  Keep original Class names (if not, all devices will be generated as SimulatorDS) (y/[n])
+  Enter your server name (SimulatorDS/DynamicDS): [SimulatorDS]
+  Creating new Tango Device X/Y/Z of class SimulatorDS in server SimulatorDS/<INSTANCE>
   
-  generate property files? yes
-  filter classes? [enter]
-  filter devices? [enter]
-  override devices? yes
-  instance to use? xgui_test
-  server? SimulatorDS
+  X/Y/Z attribute formulas will be loaded from: <...>/SimulatorDS/<INSTANCE>_attributes.txt
+  Do you want to copy them also to Tango DB so you can tune them manually ([y]/n)?
   
 You can review the configuration in Jive, for more detail on how
 to configure the devices see the SimulatorDS user guide in this docs.
