@@ -18,6 +18,10 @@ DEFAULT_STATES = [
     "ALARM=t%randint(1,30)<randint(1,6)",
     "ON=1"]
 
+RAWS = set()
+ARGS = set()
+OPTS = set()
+
 def run_app(filename,method_name,args):
  print('run_app:'+str((filename,method_name,args)))
  try:
@@ -86,12 +90,13 @@ def export_devices_from_application(*args):
     print('*'*80)
     for f,l in [(exported,factory.getExistingDevices()),(exported2,factory.getExistingAttributes())]:
         print('list saved to %s'%f)
-        f = open(f,'w')
         txt = '\n'.join(l.keys())
+        if '-v' in OPTS:
+            print(txt)
+        f = open(f,'w')
         f.write(txt)
-        print(txt)
         f.close()
-    print('*'*80)
+            
     return(exported)
 
 def export_devices_from_sources(*files,**options):
@@ -491,65 +496,95 @@ def delete_simulators(filein):
         db.delete(d)
         
 def main(args):
-  print('\nWelcome to the generic simulation script\n'+'-'*80)
-  cmd_list = (
-      ('find','[regexp filename]',
-            'TODO: finds matching devices and stores them in filename.'),
-      ('list','[main.py main_method]',
-            'export device/attribute lists from application into a file'),
-      ('export','[source.py attributes.txt output.pck]',
-            'export devices from source files into a .pck file'),
-      ('generate','[...]',
-            'create the property files for simulators'),
-      ('load','[file.pck tango_db_host [domains] ]',
-            'create simulators from files'),
-      ('play','[...]',
-            'run the simulators'),
-      ('push','[...]',
-            'configure simulators event pushing'),
-      )
 
-  cmds = [t[0] for t in cmd_list]
-  cmds = [a for a in args if a in cmds]
-  
-  if not args or len(args)<2 or not cmds:
-      print('\nUsage:\n\t'
-          'simulation.py %s file_input/instance '
-            '[main_method/polling_period/domain_alias]\n\n%s\n\n'%(
-                str(cmds),'\n'.join(map(str,cmd_list))))
-      sys.exit(1)
-  
-  args = [a for a in args if a not in cmds]
-  check = lambda s: s in str(cmds)
-  filename = args[-1]
-  
-  if check('list'):
-    filename = export_devices_from_application(*args[:2])
+    cmd_list = (
+        ('find','[regexp0 regexp1 regexp2 ... filename]',
+                'Finds matching devices and stores its names'
+                '  in a text file.'),
+        ('live_export','[main.py main_method filename]',
+                'export device/attributes names from a running application '
+                'to a file'),
+        
+        ('export','[source.py attributes.txt output.pck]',
+                'export device config/values from text/source files'
+                ' into a .pck file'),
+        ('device_export','[regexp0 regexp1 regexp2 ... output.pck]',
+                'Finds matching devices and exports its config '
+                'and values to a .pck file'),
+        
+        ('generate','[...]',
+                'create the property files for simulators'),
+        ('load','[file.pck tango_db_host [domains] ]',
+                'create simulators from files'),
+        ('play','[...]',
+                'run the simulators'),
+        ('push','[...]',
+                'configure simulators event pushing'),
+        )
 
-  elif check('export'):
-    if len(args)>=1: args = (args[:-1],filename)
-    filename = export_attributes_to_pck(*args)
-
-  elif check('generate'):
-    filename = generate_class_properties(filename)
-
-  elif check('load'):
-    filename = create_simulators(args[0],
-        tango_host=args[1],
-        domains=args[2:] and eval(args[1]) or {})
-
-  elif check('play'):
-    run_dynamic_server(filename)
-
-  elif check('push'):
-    set_push_events(*args) #filename,period,diff
-    #if len(args)>2: run_app(*args[:-1])
+    cmds = [t[0] for t in cmd_list]
+    cmds = [a for a in args if a in cmds]
     
-  print('%s done'%str(cmds))
-  sys.exit()
+    if not args or len(args)<2 or not cmds:
+        print('\nUsage:\n\n'
+          '\tgen_simulation.py [command] [arguments]\n'
+          '\tSimulatorDS --gen [command] [arguments]\n')
+        print('Command\tArguments\tDescription\n')
+        for t in cmd_list:
+            print('%s\t%s\n\n\t%s\n' % (t[0],t[1],t[2]))
+        print('adding "-v" to the command will print out'
+                'results in stdout.\n')
+        sys.exit(1)
+  
+    print('\nExecuting the generic simulation script ...\n'+'-'*80)
+    
+    raws = args
+    args = [a for a in args if a not in cmds]
+    [OPTS.add(a) for a in args if a.startswith('-')]
+    args = [a for a in args if a not in OPTS]
+    check = lambda s: s in str(cmds)
+    filename = args[-1]
 
-  #if raw_input('do you want to export attribute/config values to file?').lower().startswith('y'):
-  # export_attributes(f)
+    if check('find'):
+        devs = sorted(fd.join(map(ft.get_matching_devices,args[:-1])))
+        if '-v' in OPTS:
+            print('\n'.join(sorted(devs)))
+        with open(args[-1],'w') as f:
+            f.write('\n'.join(devs))
+    
+    if check('live_export'):
+        filename = export_devices_from_application(*args[:2])
+        
+    if check('device_export'):
+        devs = sorted(fd.join(map(ft.get_matching_devices,args[:-1])))
+        filename = export_attributes_to_pck(devs,fileout=args[-1])
+
+    elif check('export'):
+        if len(args)>=1: args = (args[:-1],filename)
+        filename = export_attributes_to_pck(*args)
+        
+    #############################################################################
+
+    elif check('generate'):
+        filename = generate_class_properties(filename)
+
+    elif check('load'):
+        filename = create_simulators(args[0],
+            tango_host=args[1],
+            domains=args[2:] and eval(args[1]) or {})
+
+    elif check('play'):
+        run_dynamic_server(filename)
+
+    elif check('push'):
+        set_push_events(*args) #filename,period,diff
+        #if len(args)>2: run_app(*args[:-1])
+        
+    print('\n\n%s done'%str(cmds))
+    sys.exit()
+
+    #if raw_input('do you want to export attribute/config values to file?').lower().startswith('y'):
+    # export_attributes(f)
 
 if __name__ == '__main__':
   import sys
