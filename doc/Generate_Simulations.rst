@@ -52,7 +52,7 @@ to a testing environment.
 
 First, enter login to your Tango control system host:
 
-.. ::
+.. code-block::
 
  ssh prod01
  mkdir sim/
@@ -62,19 +62,19 @@ You can use several methods:
 
 * pass the list of devices to the script and the pickle filename as last argument:
  
-.. ::
+.. code-block::
  
   gen_simulation.py sr02/vc/eps-plc-01 sr02/vc/mir-01 sr02_plcs.pck
   
 * parse your GUI source files for hardcoded device names.
 
-.. ::
+.. code-block::
 
   gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck  
 
 * find the list of devices using fandango and write it to a file so it can be parsed:
  
- .. ::
+.. code-block::
  
    # Export devices to a file
    fandango -l find_devices "elin/*/*" > devices.txt
@@ -92,7 +92,7 @@ the attribute configuration of the selected devices.
 
 Now, copy this configuration file to your test environment:
 
-.. ::
+.. code-block::
 
    scp /tmp/xgui_attributes.pck user@sim03:/home/user/test/
 
@@ -106,7 +106,7 @@ name of the hostname of your TESTING Tango Database.
 This name must be exactly equal to your TANGO_HOST environment variable, it is asked
 to ensure that you're not overriding the production database by mistake.
 
-::
+.. code-block::
 
   cd /home/user/test #Or wherever
   #gen_simulation load [pickle file] [tango db host]
@@ -114,7 +114,7 @@ to ensure that you're not overriding the production database by mistake.
   
 When prompted, the most common options are::
 
-.. ::
+.. code-block::
 
   Enter a filter for device names: [*/*/*]
   Enter your instance name for the simulated servers:
