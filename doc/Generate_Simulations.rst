@@ -114,8 +114,6 @@ to ensure that you're not overriding the production database by mistake.
   
 When prompted, the most common options are::
 
-.. code-block::
-
   Enter a filter for device names: [*/*/*]
   Enter your instance name for the simulated servers:
   Do you want to split Simulators in several servers,one for each class (y/[n])?
