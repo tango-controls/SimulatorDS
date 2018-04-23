@@ -29,16 +29,16 @@ real Tango devices that are running on "prod01" host. The simulation instead wil
 
 It's also assumed that fandango is installed and gen_simulation.py script is in your path.
 
-  NOTE: "gen_simulation.py [args]" can also be called as "SimulatorDS --gen [args]"
+ NOTE: "gen_simulation.py [args]" can also be called as "SimulatorDS --gen [args]"
 
 The steps to follow will be:
 
- * identify the devices to simulate
- * export its attribute values and configuration to a .pck file
- * move this file to the testing environment
- * generate SimulatorDS devices from the .pck data
- * launch the simulators
- * launch your application
+* identify the devices to simulate
+* export its attribute values and configuration to a .pck file
+* move this file to the testing environment
+* generate SimulatorDS devices from the .pck data
+* launch the simulators
+* launch your application
  
 Using gen_simulation from bash
 ==============================
@@ -60,19 +60,19 @@ First, enter login to your Tango control system host:
 
 You can use several methods:
 
- * pass the list of devices to the script and the pickle filename as last argument:
+* pass the list of devices to the script and the pickle filename as last argument:
  
 .. ::
  
  gen_simulation.py sr02/vc/eps-plc-01 sr02/vc/mir-01 sr02_plcs.pck
   
- * parse your GUI source files for hardcoded device names.
+* parse your GUI source files for hardcoded device names.
 
 .. ::
 
  gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck  
 
- * find the list of devices using fandango and write it to a file so it can be parsed:
+* find the list of devices using fandango and write it to a file so it can be parsed:
  
  .. ::
  
