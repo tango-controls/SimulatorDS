@@ -64,13 +64,13 @@ You can use several methods:
  
 .. ::
  
- gen_simulation.py sr02/vc/eps-plc-01 sr02/vc/mir-01 sr02_plcs.pck
+  gen_simulation.py sr02/vc/eps-plc-01 sr02/vc/mir-01 sr02_plcs.pck
   
 * parse your GUI source files for hardcoded device names.
 
 .. ::
 
- gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck  
+  gen_simulation.py export path/to/XGUI/*.py xgui_attributes.pck  
 
 * find the list of devices using fandango and write it to a file so it can be parsed:
  
