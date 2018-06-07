@@ -113,7 +113,7 @@ Or  more complex:
 Setting Dynamic States
 ----------------------
 
-For DynamicStates a boolean operation must be set to each state ... but the name of the State should match an standard Tango.DevState name (ON, FAULT, ALARM, OPEN, CLOSE, ...)
+For DynamicStates a boolean operation must be set to each state ... but the name of the State should match a standard Tango.DevState name (ON, FAULT, ALARM, OPEN, CLOSE, ...)
 
   ALARM=(SomeAttribute > MaxRange)
   ON=True
