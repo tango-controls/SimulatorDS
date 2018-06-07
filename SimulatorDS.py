@@ -220,7 +220,7 @@ class SimulatorDSClass(DynamicDSClass):
             [ ] ],
         'DynamicStates':
             [PyTango.DevVarStringArray,
-            "This property will allow to declare new States dinamically based on\n<br/>\ndynamic attributes changes. The function Attr will allow to use the\n<br/>\nvalue of attributes in formulas.<br/>\n\n\n<br/>\nALARM=Attr(T1)>70<br/>\nOK=1",
+            "This property will allow to declare new States dynamically based on\n<br/>\ndynamic attributes changes. The function Attr will allow to use the\n<br/>\nvalue of attributes in formulas.<br/>\n\n\n<br/>\nALARM=Attr(T1)>70<br/>\nOK=1",
             [ ] ],
         'UseScipy':
             [PyTango.DevBoolean,

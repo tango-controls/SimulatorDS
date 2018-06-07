@@ -9,12 +9,12 @@ It's also assumed that fandango is installed and gen_simulation.py is in your pa
 
 The steps to follow will be:
 
- * identify the devices to simulate
- * export its attribute values and configuration to a .pck file
- * move this file to the testing environment
- * generate SimulatorDS devices from the .pck data
- * launch the simulators
- * launch your application
+* identify the devices to simulate
+* export its attribute values and configuration to a .pck file
+* move this file to the testing environment
+* generate SimulatorDS devices from the .pck data
+* launch the simulators
+* launch your application
  
 Using gen_simulation from bash
 ==============================
@@ -51,11 +51,13 @@ Generate simulators in your test environment
   
 When prompted, the most common options are::
 
-  generate property files? yes
-  filter classes? [enter]
-  filter devices? [enter]
+  Property files do not exist yet,
+  Do you want to generate them? (y/n) yes
+  Do you want to filter out some classes? [PyStateComposer] <enter>
+  Enter a filter for device names: [*/*/*] <enter>
   override devices? yes
-  instance to use? xgui_test
+  Enter your instance name for the simulated server (use "instance-" to use multiple instances): xgui_test
+  Keep original Class names? yes
   server? SimulatorDS
   
 You can review the configuration in Jive, for more detail on how
