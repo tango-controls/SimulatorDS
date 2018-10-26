@@ -43,6 +43,8 @@ or directly parse the source files for hardcoded device names.
 Generate simulators in your test environment
 --------------------------------------------
 
+In the following, PCK file has to be in the **current** directory to work.
+
 ::
 
   cd /home/user/test #Or wherever
