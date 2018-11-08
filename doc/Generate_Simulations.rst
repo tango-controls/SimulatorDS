@@ -50,23 +50,15 @@ We will use "gen_simulation.py export"  to read the configuration and attribute 
 of a list of devices and generate a pickle file (.pck) that can be easily copied 
 to a testing environment.
 
-First, enter login to your Tango control system host:
-
-.. code-block::
-
- ssh prod01
- mkdir sim/
- cd sim/
-
 You can use several methods:
 
-* pass the list of devices to the script and the pickle filename as last argument:
+* device_export: pass the list of devices to the script and the pickle filename as last argument:
  
 .. code-block::
  
-  gen_simulation.py sr02/vc/eps-plc-01 sr02/vc/mir-01 sr02_plcs.pck
+  gen_simulation.py device_export sys/tg_test/1 test/alarms/1 test_devs.pck
   
-* parse your GUI source files for hardcoded device names.
+* export: parse your GUI source files for hardcoded device names.
 
 .. code-block::
 
@@ -85,7 +77,6 @@ You can use several methods:
    # Then export all the devices configuration to a pickle file
    gen_simulation.py export devices.txt xgui_attributes.pck
  
-
 
 In all cases you'll obtain a pickle file (.pck) containing all
 the attribute configuration of the selected devices.
