@@ -1,7 +1,7 @@
 
 This is a simulation suite for PyTango, it allows to create dynamic device servers and replicate existings systems into playable mockups.
 
-To replicate a running system in few minutes see the gen_simulation script: https://github.com/tango-controls/SimulatorDS/blob/master/doc/gen_simulation.rst
+To replicate a running system in few minutes see the gen_simulation script: https://github.com/tango-controls/SimulatorDS/blob/master/doc/Generate_Simulations.rst
 
 To build your own simulations, see the SimulatorDS user guide: https://github.com/tango-controls/SimulatorDS/blob/master/doc/SimulatorDS.rst
 
