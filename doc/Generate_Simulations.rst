@@ -2,6 +2,8 @@
 Simulate a running Tango Control System in Few Steps
 ====================================================
 
+.. contents
+
 What is a SimulatorDS
 =====================
 
@@ -183,6 +185,31 @@ Once you're done, launch the SimulatorDS and your favourite GUI from console::
 
   # python SimulatorDS.py elinac_test &
   # vaccagui $VACCA_PATH/examples/elinac/elinac.py
- 
 
+----
+
+Format of generated files
+=========================
+
+devices.txt will contain a list of either attributes or devices that will
+be parsed by the script. As when parsing source files, the script simply
+searchs for strings that look like tango names, and then it searches if
+they exist in the Tango database.
+
+If the names are found, then it proceeds to execute DeviceProxy.info(),
+get_device_property(), get_attribute_list() and get_attribute_info() to
+obtain all the information regarding device, server, class, types of
+attributes and its format.
+
+It collects other information like the current value, polling
+periods and event configurations and it finally writes everything into a
+nested dictionary, where the main keys are the device names and then
+attributes and properties. For the attributes I try to mimic the structs
+that are used internally in the get_attribute_config/set_attribute_config
+commands of PyTango.
+
+The format of the .pck file is arbitrary, just depends of the pickle
+library that comes with python. That library allows to import/export
+python objects to/from files. I could have used .json files instead and
+probably I'll switch to that format in the future.
 
