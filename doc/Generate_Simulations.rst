@@ -2,7 +2,7 @@
 Simulate a running Tango Control System in Few Steps
 ====================================================
 
-.. contents
+.. contents::
 
 What is a SimulatorDS
 =====================
