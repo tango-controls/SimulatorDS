@@ -182,7 +182,7 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
         if s.dev_class in filters: continue
         classes[s.dev_class].attrs = {}
         classes[s.dev_class].comms = {}
-        classes[s.dev_class].values = defaultdict(set)
+        classes[s.dev_class].values = defaultdict(list)
      
     for d,s in devs.items():
 
@@ -194,9 +194,10 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
         
         if t.value is not None and not any(x in t.datatype.lower() for x in ('array',)):
           try:
-            classes[s.dev_class].values[a].add(t.value)
-          except:
-            print d,s.dev_class,a,t
+            classes[s.dev_class].values[a].append(t.value)
+          except Exception,e:
+            traceback.print_exc()
+            print(d,s.dev_class,a,type(classes[s.dev_class].values[a]),e)
 
     for d,s in devs.items():
       
@@ -231,7 +232,10 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
                 formula = DEFAULT_INT(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
             if 'Array' in datatype: 
                 formula = "[%s for i in range(10)]"%formula
-            if all_rw or 'WRITE' in t.writable: 
+            
+            if all_rw or 'WRITE' in t.writable \
+                or 'UNKNOWN' in t.writable and 'Array' not in datatype: 
+                print(a,t.writable)
                 formula = DEFAULT_WRITE(a=a,f=formula)
                 
             classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
@@ -340,6 +344,10 @@ def create_simulators(filein,instance='',path='',domains={},
         '\nKeep original Class names (if not, all devices will be '
         'generated as SimulatorDS) (y/[n])? ').lower()
     
+    suffix = raw_input(
+        '\nIf wanted, type a suffix for generated device servers:'
+        ).lower().strip()   
+    
     if keepclass:
         server = 'SimulatorDS'
     elif not server:
@@ -386,6 +394,8 @@ def create_simulators(filein,instance='',path='',domains={},
                 generate_class_properties(filein,classnames=[orgklass])
                 os.chdir(cur)        
             klassdone.append(orgklass)
+            
+        org,d = d,d+suffix
 
         if its_new or override: 
             print('\n' + '*'*80)
