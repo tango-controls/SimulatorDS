@@ -5,6 +5,29 @@ import PyTango,fandango as fd
 from fandango import check_device,check_attribute,Struct,defaultdict
 import fandango.tango as ft
 
+__doc__ = """
+
+gen_simulation.py: script to export Tango devices and generate simulators
+
+Usage:
+    gen_simulation.py [command] [arguments]
+    SimulatorDS --gen [command] [arguments]
+    
+Typical usage:
+    # Exporting devices
+    cd your/shared/export/folder
+    gen_simulation.py find my/devices/*
+    gen_simulation.py export devices.txt output.pck
+    
+    # Loading devices
+    export TANGO_HOST=test_host:10000
+    gen_simulation.py generate output.pck
+    gen_simulation.py load output.pck test_host:10000
+    
+    # And start them
+    gen_simulation.py play your_instance_name
+"""
+
 DEFAULT_STATE = lambda c=None,d=None,a=None,f='ON': "%s"%f
 DEFAULT_WRITE = (lambda c=None,d=None,a=None,f=None: 
     "VAR('%s',default=%s) if not WRITE else VAR('%s',VALUE)"%(a,f,a))
@@ -525,26 +548,7 @@ def delete_simulators(filein):
         [db.delete_property(d,p) for p in props]
         db.delete(d)
         
-HELP = """
-Usage:
-    gen_simulation.py [command] [arguments]
-    SimulatorDS --gen [command] [arguments]
-    
-Typical usage:
-    # Exporting devices
-    cd your/shared/export/folder
-    gen_simulation.py find my/devices/*
-    gen_simulation.py export devices.txt output.pck
-    
-    # Loading devices
-    export TANGO_HOST=test_host:10000
-    gen_simulation.py generate output.pck
-    gen_simulation.py load output.pck test_host:10000
-    
-    # And start them
-    gen_simulation.py play your_instance_name
-"""
-        
+       
 def main(args):
 
     cmd_list = (
@@ -576,7 +580,7 @@ def main(args):
     cmds = [a for a in args if a in cmds]
     
     if not args or len(args)<2 or not cmds:
-        print(HELP)
+        print(__doc__)
         print('Command\tArguments\tDescription\n')
         for t in cmd_list:
             print('%s\t%s\n\n\t%s\n' % (t[0],t[1],t[2]))
