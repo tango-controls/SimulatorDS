@@ -547,45 +547,44 @@ def delete_simulators(filein):
         props = get_all_properties(d)
         [db.delete_property(d,p) for p in props]
         db.delete(d)
-        
+
+CMD_LIST = (
+    ('find','[regexp0 regexp1 regexp2 ... filename]',
+            'Finds matching devices and stores its names'
+            '  in a text file.'),
+    ('live_export','[main.py main_method filename]',
+            'export device/attributes names from a running application '
+            'to a file'),
+    
+    ('export','[source.py attributes.txt output.pck]',
+            'export device config/values from text/source files'
+            ' into a .pck file'),
+    ('device_export','[regexp0 regexp1 regexp2 ... output.pck]',
+            'Finds matching devices and exports its config '
+            'and values to a .pck file'),
+    
+    ('generate','[...]',
+            'create the property files for simulators'),
+    ('load','[file.pck tango_db_host [domains] ]',
+            'create simulators from files'),
+    ('play','[...]',
+            'run the simulators'),
+    ('push','[...]',
+            'configure simulators event pushing'),
+    )  
+    
+__doc__ += '\nCommand\tArguments\tDescription\n'
+for t in CMD_LIST:
+    __doc__ += '%s\t%s\n\n\t%s\n' % (t[0],t[1],t[2])
+__doc__ += ('\nadding "-v" to the command will print out'
+            'results in stdout.\n')
        
 def main(args):
-
-    cmd_list = (
-        ('find','[regexp0 regexp1 regexp2 ... filename]',
-                'Finds matching devices and stores its names'
-                '  in a text file.'),
-        ('live_export','[main.py main_method filename]',
-                'export device/attributes names from a running application '
-                'to a file'),
-        
-        ('export','[source.py attributes.txt output.pck]',
-                'export device config/values from text/source files'
-                ' into a .pck file'),
-        ('device_export','[regexp0 regexp1 regexp2 ... output.pck]',
-                'Finds matching devices and exports its config '
-                'and values to a .pck file'),
-        
-        ('generate','[...]',
-                'create the property files for simulators'),
-        ('load','[file.pck tango_db_host [domains] ]',
-                'create simulators from files'),
-        ('play','[...]',
-                'run the simulators'),
-        ('push','[...]',
-                'configure simulators event pushing'),
-        )
-
-    cmds = [t[0] for t in cmd_list]
+    cmds = [t[0] for t in CMD_LIST]
     cmds = [a for a in args if a in cmds]
     
     if not args or len(args)<2 or not cmds:
         print(__doc__)
-        print('Command\tArguments\tDescription\n')
-        for t in cmd_list:
-            print('%s\t%s\n\n\t%s\n' % (t[0],t[1],t[2]))
-        print('adding "-v" to the command will print out'
-                'results in stdout.\n')
         sys.exit(1)
   
     print('\nExecuting the generic simulation script ...\n'+'-'*80)
