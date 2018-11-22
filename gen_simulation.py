@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os,sys,threading,pickle,time,traceback,random
-import PyTango,fandango as fd
+import PyTango,fandango as fn
 from fandango import check_device,check_attribute,Struct,defaultdict
 import fandango.tango as ft
 
@@ -28,14 +28,17 @@ Typical usage:
     gen_simulation.py play your_instance_name
 """
 
-DEFAULT_STATE = lambda c=None,d=None,a=None,f='ON': "%s"%f
+DEFAULT_STATE = lambda c=None,d=None,a=None,f='ON': "%s" % f
 DEFAULT_WRITE = (lambda c=None,d=None,a=None,f=None: 
     "VAR('%s',default=%s) if not WRITE else VAR('%s',VALUE)"%(a,f,a))
-DEFAULT_DOUBLE = lambda c=None,d=None,a=None,f=1.: '%s * (1+2*sin((int(PROPERTY("OFFSET"))+t)%%3.14))'%f
-DEFAULT_INT = lambda c=None,d=None,a=None,f=1.: 'int(PROPERTY("OFFSET"))+randint(0,10) * %s'%f
-DEFAULT_STRING = lambda c=None,d=None,a=None,f=None: "%s"%(f or "'%s/%s'"%(d,a))
+DEFAULT_DOUBLE = (lambda c=None,d=None,a=None,f=1.: 
+    '%s * (1+2*sin((int(PROPERTY("OFFSET"))+t)%%3.14))' % f)
+DEFAULT_INT = (lambda c=None,d=None,a=None,f=1.: 
+    'int(PROPERTY("OFFSET"))+randint(0,10) * %s' % f)
+DEFAULT_STRING = (lambda c=None,d=None,a=None,f=None: "%s" 
+                  % (f or "'%s/%s'"%(d,a)))
 DEFAULT_BOOL = lambda c=None,d=None,a=None,f=None: 'randint(0,1)'
-DEFAULT_ARGS = lambda c=None,d=None,a=None,f=None: 'ARGS and %s'%f
+DEFAULT_ARGS = lambda c=None,d=None,a=None,f=None: 'ARGS and %s' % f
 
 DEFAULT_STATES = [
     "MOVING=t%randint(15,30)>randint(1,15)",
@@ -69,19 +72,19 @@ def split_server_by(server,rule=None):
     If no rule is passed, instance-family is used
     """
     sname,instance = server.split('/',1)
-    sd = fd.ServersDict(server)
+    sd = fn.ServersDict(server)
     news = []
     devs = sd.get_all_devices()
     print('%s/%s contains %d devices'%(sname,instance,len(devs)))
     ff = lambda d,*args: '%s-%s'%(instance.strip('*'),d.split('/')[1])
-    rule = fd.notNone(rule,ff)
+    rule = fn.notNone(rule,ff)
         
         
     for d in devs:
         k = sd.get_device_class(d)
         news.append(sname+'/'+rule(d,sname,devs))
         print('%s(%s) => %s'%(k,d,news[-1]))
-        fd.tango.add_new_device(news[-1],k,d)
+        fn.tango.add_new_device(news[-1],k,d)
         
     return dict((k,news.count(k)) for k in set(news))
 
@@ -153,8 +156,8 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
     print('export_attributes_to_pck(%s)'%str((filein,fileout)))
     assert fileout.endswith('.pck'), 'output must be a pickle file!'
 
-    all_devs = fd.tango.get_all_devices()
-    filein = fd.toList(filein)
+    all_devs = fn.tango.get_all_devices()
+    filein = fn.toList(filein)
     if all(ft.get_normal_name(ft.get_dev_name(d.lower()))
            in all_devs for d in filein):
         devs = filein
@@ -170,8 +173,8 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
       print('%s (%d/%d)' % (d,1+len(devs),len(proxies)))
       obj = devs[d]
       obj.dev_class,obj.attrs,obj.comms = '',defaultdict(Struct),{}
-      obj.props = dict((k,v if not 'vector' in str(type(v)).lower() else list(v)) for k,v in fd.tango.get_matching_device_properties(d,'*').items() if 'dynamicattributes' not in k.lower())
-      if fd.check_device(d):
+      obj.props = dict((k,v if not 'vector' in str(type(v)).lower() else list(v)) for k,v in fn.tango.get_matching_device_properties(d,'*').items() if 'dynamicattributes' not in k.lower())
+      if fn.check_device(d):
         devs[d].name = d
         devs[d].dev_class = dp.info().dev_class
         for c in dp.command_list_query():
@@ -180,7 +183,7 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
         for a in dp.get_attribute_list():
          if a.lower() == 'status':
           continue
-         obj.attrs[a] = fd.tango.export_attribute_to_dict(d,a,as_struct=True)
+         obj.attrs[a] = fn.tango.export_attribute_to_dict(d,a,as_struct=True)
       
     pickle.dump(devs,open(fileout,'w'))
     print('\n%s has been generated, now copy it to your test environment [host] and'
@@ -190,7 +193,7 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
     return(fileout)
 
 def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
-                              classnames = []):
+                              classnames = [], max_array = 0):
   
     print('generate_class_properties:'+str(filein))
     devs = pickle.load(open(filein))
@@ -206,6 +209,10 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
         classes[s.dev_class].attrs = {}
         classes[s.dev_class].comms = {}
         classes[s.dev_class].values = defaultdict(list)
+        
+    if not max_array:
+        max_array = int(raw_input('Enter the maximum array length [128]:'
+            ).strip() or 128)
      
     for d,s in devs.items():
 
@@ -228,7 +235,7 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
         continue
      
       #Iterate attributes
-      for a,t in s.attrs.items():
+      for a,t in sorted(s.attrs.items()):
        
         if a.lower() in ('state','status'):
           continue
@@ -241,19 +248,42 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
             datatype,formula = 'DevDouble','NaN'
          
           else:
+            value = classes[s.dev_class].values[a]
+            #if value!=t.value: print('!?')
+            if fn.isSequence(value): 
+                print(a,max_array)
+                if len(value) and fn.isSequence(value[0]):
+                    # value = [v[:max_array/len(value)] for v in value]
+                    value = value[0]
+                value = value[:max_array]
+            
             datatype = t.datatype if t.data_format=='SCALAR' \
                 else t.datatype.replace('Dev','DevVar')+'Array'
+            
             if 'bool' in datatype.lower(): 
+                print(a,'bool')
                 formula = DEFAULT_BOOL()
+            
             elif 'state' in datatype.lower(): 
-                formula = DEFAULT_STATE(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
+                print(a,'state')
+                formula = DEFAULT_STATE(f='choice(%s or [0])'
+                    % list(classes[s.dev_class].values[a]))
+            
             elif 'string' in datatype.lower(): 
-                formula = DEFAULT_STRING(d=d,a=a,f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
+                print(a,'string')
+                formula = DEFAULT_STRING(
+                    d=d,a=a,f='choice(%s or [0])' % list(value))
+                
             elif 'double' in datatype.lower() or 'float' in datatype.lower(): 
-                formula = DEFAULT_DOUBLE(f=random.choice(list(classes[s.dev_class].values[a]) or [0]))
+                print(a,'double')
+                formula = DEFAULT_DOUBLE(f=random.choice(list(value) or [0]))
+            
             else: 
-                formula = DEFAULT_INT(f='choice(%s or [0])'%list(classes[s.dev_class].values[a]))
+                print(a,'default')
+                formula = DEFAULT_INT(f='choice(%s or [0])' % list(value))
+
             if 'Array' in datatype: 
+                print(a,'array')
                 formula = "[%s for i in range(10)]"%formula
             
             if all_rw or 'WRITE' in t.writable \
@@ -262,11 +292,13 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
                 formula = DEFAULT_WRITE(a=a,f=formula)
                 
             classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
+            
+            print(str((a,datatype,formula))[:80])
          
       #Iterate commands
       for c,t in s.comms.items():
           
-        if fd.isMapping(t):
+        if fn.isMapping(t):
             t = t['in_type'],t['out_type']
             
         datatype = t[1] if t[1]!='DevVoid' else 'DevString'
@@ -317,16 +349,16 @@ def create_simulators(filein,instance='',path='',domains={},
     path = path or os.path.abspath(os.path.dirname(filein))+'/'
     print('create_simulators:'+str((filein,instance,path,domains,tango_host)))
     print()
-    files = fd.listdir(path)
+    files = fn.listdir(path)
     
     ## CHECK IS MANDATORY, YOU SHOULD EXPORT AND SIMULATE IN DIFFERENT HOSTS
-    assert tango_host and tango_host in str(fd.tango.get_tango_host()),\
-                'Tango Host (%s!=%s) does not match!'%(tango_host,fd.tango.get_tango_host())
+    assert tango_host and tango_host in str(fn.tango.get_tango_host()),\
+                'Tango Host (%s!=%s) does not match!'%(tango_host,fn.tango.get_tango_host())
     
     devs,org = {},pickle.load(open(filein if '/' in filein else path+filein))
     done = []
     
-    all_devs = fd.get_all_devices()
+    all_devs = fn.get_all_devices()
     
     print('>'*80)
     
@@ -338,7 +370,7 @@ def create_simulators(filein,instance='',path='',domains={},
         k = ('/'.join(d.split('/')[-3:])).lower() #Removing tango host from the name
         for a,b in domains.items():
             if k.startswith(a): k = k.replace(a,b)
-        if not filters or fd.matchCl(filters,d) or fd.matchCl(filters,org[d].dev_class):
+        if not filters or fn.matchCl(filters,d) or fn.matchCl(filters,org[d].dev_class):
             devs[k] = t
             
     if override is not False:
@@ -427,13 +459,13 @@ def create_simulators(filein,instance='',path='',domains={},
                   (d,klass,server,instance_temp))
             print()
                         
-            fd.tango.add_new_device('%s/%s'%(server,instance_temp),klass,d)
+            fn.tango.add_new_device('%s/%s'%(server,instance_temp),klass,d)
 
             t.props['LoadFromFile'] = path+'%s_attributes.txt'%t.dev_class
             for p,v in t.props.items():
                 if not p.startswith('__'): 
                     #p not in ('DynamicCommands','DynamicStates','LoadFromFile','DevicesList') and 
-                    fd.tango.put_device_property(d,p,v)         
+                    fn.tango.put_device_property(d,p,v)         
                     print('\tAdded property: %s/%s [%d]' % (d,p,len(v or [])))
                 
             ov_dynattrs = not raw_input(
@@ -445,7 +477,7 @@ def create_simulators(filein,instance='',path='',domains={},
             #Overriding Dynamic* properties
             def load_prop_from_file(d,prop,f,path):
                 v = filter(bool,map(str.strip,open(f).readlines()))
-                fd.tango.put_device_property(d,prop,v)
+                fn.tango.put_device_property(d,prop,v)
                 print('\tAdded property: %s/%s [%d] from %s' 
                       % (d,prop,len(v or []),f))
             try:
@@ -461,16 +493,16 @@ def create_simulators(filein,instance='',path='',domains={},
                 traceback.print_exc()
                 print()
         
-        fd.tango.put_device_property(d,'OFFSET',random.randint(0,len(devs)))
+        fn.tango.put_device_property(d,'OFFSET',random.randint(0,len(devs)))
         done.append(d)
 
-    exported = fd.get_all_devices(exported=True)
+    exported = fn.get_all_devices(exported=True)
     update = [d for d in done if d in exported]
     print('Updating %d Devices ...'%len(update))
     for d in update:
-        if fd.check_device(d):
+        if fn.check_device(d):
             print('Updating %s ...'%d)
-            try: fd.get_device(d).updateDynamicAttributes()
+            try: fn.get_device(d).updateDynamicAttributes()
             except Exception,e: print(e)
         else:
             print('%s failed!'%d)
@@ -503,7 +535,7 @@ def run_dynamic_server(instance):
     
 def set_push_events(filein,period=3000,diff=1e-5):
     print('set_push_events(%s,%s,%s)'%(filein,period,diff))
-    devs = fd.get_matching_devices(filein)
+    devs = fn.get_matching_devices(filein)
     for d in devs[:]:
         if not check_device(d):
             q = raw_input('Unable to configure events for %s, '
@@ -512,8 +544,8 @@ def set_push_events(filein,period=3000,diff=1e-5):
             devs.remove(d)
             
     if devs:
-        devs = dict((d,fd.Struct(
-            {'attrs':fd.get_device(d).get_attribute_list()})) for d in devs)
+        devs = dict((d,fn.Struct(
+            {'attrs':fn.get_device(d).get_attribute_list()})) for d in devs)
     else:
         devs = pickle.load(open(filein))
     for d,t in sorted(devs.items()):
@@ -540,7 +572,7 @@ def set_push_events(filein,period=3000,diff=1e-5):
 def delete_simulators(filein):
     #NOTE THIS METHOD SHOUL DELETE ONLY PYSIGNALSIMULATOR INSTANCES, NOT ANYTHING ELSE!
     raise 'NotImplementedYet!'
-    all_sims = fd.Astor('*Simulator*/*').get_all_devices()
+    all_sims = fn.Astor('*Simulator*/*').get_all_devices()
     devs = [d for d in pickle.load(open(filein)) if d in all_sims]
     db = PyTango.Database()
     for d in devs:
@@ -597,7 +629,7 @@ def main(args):
     filename = args[-1]
 
     if check('find'):
-        devs = sorted(fd.join(map(ft.get_matching_devices,args[:-1])))
+        devs = sorted(fn.join(map(ft.get_matching_devices,args[:-1])))
         if '-v' in OPTS:
             print('\n'.join(sorted(devs)))
         with open(args[-1],'w') as f:
@@ -607,7 +639,7 @@ def main(args):
         filename = export_devices_from_application(*args[:2])
         
     if check('device_export'):
-        devs = sorted(fd.join(map(ft.get_matching_devices,args[:-1])))
+        devs = sorted(fn.join(map(ft.get_matching_devices,args[:-1])))
         filename = export_attributes_to_pck(devs,fileout=args[-1])
 
     elif check('export'):
