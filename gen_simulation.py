@@ -194,41 +194,79 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
 
 def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
                               classnames = [], max_array = 0):
-  
+    """
+    This method will load device/attribute/values from a .pck file
+    
+    It will build a new classes dictionary grouping all different attr/value
+    combinations for each Tango class.
+    
+    @TODO: an alternate method should allow to export different attribute
+    lists for each class device.
+    
+    classes.devs keeps the instantiated devices
+    classes.attrs keeps the generic formulas
+    """
     print('generate_class_properties:'+str(filein))
-    devs = pickle.load(open(filein))
-
+    f = open(filein)
+    pck = pickle.load(f)
+    f.close()
     classes = defaultdict(Struct)
-    if not classnames:
-        print('classes in %s are: %s'%(filein,sorted(set(s.dev_class for s in devs.values()))))
-        filters=raw_input('Do you want to filter out some classes? [PyStateComposer]') or 'PyStateComposer'
+    
+    if classnames:
+        filters = [s.dev_class for s in pck.values() 
+                   if s.dev_class not in classnames]
     else:
-        filters = [s.dev_class for s in devs.values() if s.dev_class not in classnames]
-    for d,s in devs.items():
-        if s.dev_class in filters: continue
-        classes[s.dev_class].attrs = {}
-        classes[s.dev_class].comms = {}
-        classes[s.dev_class].values = defaultdict(list)
+        print('classes in %s are: %s' 
+              % (filein,sorted(set(s.dev_class for s in pck.values()))))
+        filters = (raw_input(
+            'Do you want to filter out some classes? [PyStateComposer]') 
+            or 'PyStateComposer')
         
-    if not max_array:
-        max_array = int(raw_input('Enter the maximum array length [128]:'
-            ).strip() or 128)
-     
-    for d,s in devs.items():
-
-      if s.dev_class in filters: continue
-      
-      for a,t in s.attrs.items():
-        t['datatype'] = t.get('data_type','DevDouble')
-        if not isinstance(t,Struct): t = Struct(t)
+    max_array = max_array or int(raw_input(
+        'Enter the maximum array length [128]:').strip() or 128)
         
-        if t.value is not None and not any(x in t.datatype.lower() for x in ('array',)):
-          try:
-            classes[s.dev_class].values[a].append(t.value)
-          except Exception,e:
-            traceback.print_exc()
-            print(d,s.dev_class,a,type(classes[s.dev_class].values[a]),e)
+    for d,s in pck.items()[:]:
+        if s.dev_class.lower() not in filters:
+            s = classes[s.dev_class]
+            if not hasattr(s,'attrs'):
+                s.attrs, s.devs, s.comms = {}, {}, {}
+                s.states, s.status = [], []
+                s.values, s.types = defaultdict(list), {}
 
+            s.devs[d] = s
+            for a, t in s.attrs.items():
+                if a.lower() == 'state':
+                    s.states.append(t.value)
+                if a.lower() == 'status':
+                    s.status.append(t.value)
+                else:
+                    s.attrs[a] = t # str(t.writable)
+                    s.values[a].append(t.value)
+                    tt = t.get('data_type',t.get('datatype'))
+                    if t.data_format == 'SPECTRUM':
+                        tt = tt.replace('Dev','DevVar')+'Array'
+                    elif t.data_format == 'IMAGE':
+                        tt = tt.replace('Dev','DevVar')+'Image'
+                    s.types[a] = tt
+
+            for c, t in s.comms.items():
+                if c.lower() not in ('state','status'):
+                    s.comms[c] = None
+                    s.types[c+'()'] = t # in_type / out_type tuple
+                    # s.values[c].append(t.value) # Not saved
+                
+    for c, s in sorted(classes.items()):
+
+        for d in sorted(s.devs):
+
+            for a in sorted(c.attrs):
+                formula = generate_formula(a,s['types'][a],s['values'][a])
+                c.attrs[a] = formula
+
+            for c in sorted(c.comms):
+                formula = generate_formula(c,s['types'][c+'()'])
+                c.comms[c] = formula
+                
     for d,s in devs.items():
       
       if s.dev_class in filters: 
@@ -237,17 +275,80 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
       #Iterate attributes
       for a,t in sorted(s.attrs.items()):
        
-        if a.lower() in ('state','status'):
-          continue
      
         if t.value is None and a in classes[s.dev_class].attrs:
           continue
      
         else:
-          if t.value is None: 
+            
+        #Iterate commands
+        for c,t in s.comms.items():
+            generate_formula(c, t.datatype?)
+         
+        classes[s.dev_class].states = DEFAULT_STATES
+      
+    for k,t in classes.items():
+        print('\nWriting %s attributes ([%d])\n'%(k,len(t.attrs)))
+        f = open('%s_attributes.txt'%k,'w')
+        for a in sorted(t.attrs.values()):
+                #print('%s'%a)
+                f.write('%s\n'%a)
+        f.close()
+        print('\nWriting %s commands ([%d])\n'%(k,len(t.comms)))
+        f = open('%s_commands.txt'%k,'w')
+        for a in sorted(t.comms.values()):
+                #print('%s'%a)
+                f.write('%s\n'%a)
+        f.close()
+        print('\nWriting %s states ([%d])\n'%(k,len(t.states)))
+        f = open('%s_states.txt'%k,'w')
+        for a in t.states:
+                #print('%s'%a)
+                f.write('%s\n'%a)
+        f.close()  
+
+    return(filein)            
+            
+def generate_formula(a, ttype, values = []):
+    """ 
+    It returns the appropiate (datatype, formula) for the attribute 
+    """
+    
+        if isinstance(ttype,tuple) and len(ttype) == 2:
+            # Generate commands formulas
+            # Input values are actually ignored
+            
+            if fn.isMapping(datatype):
+                datatype = datatype['in_type'], datatype['out_type']
+
+            if datatype[0] == datatype[1] and datatype[0] != 'DevVoid':
+                formula = '%s(ARGS[0])' % datatype[0]
+                
+            else:
+                datatype = ('DevString',datatype[1])[datatype[1]!= 'DevVoid']
+                    
+                if 'bool' in datatype.lower(): 
+                    formula = DEFAULT_BOOL()
+                elif 'state' in datatype.lower(): 
+                    formula = DEFAULT_STATE()
+                elif 'string' in datatype.lower(): 
+                    formula = DEFAULT_STRING(d=d,a=c)
+                elif 'double' in datatype.lower() or 'float' in datatype.lower(): 
+                    formula = DEFAULT_DOUBLE()
+                else: 
+                    formula = DEFAULT_INT()
+                    
+                if 'Array' in datatype: 
+                    formula = "[%s for i in range(10)]"%formula
+                if 'DevVoid' not in t[0]: 
+                    formula = DEFAULT_ARGS(f=formula)
+              
+        elif all(v is None for v in values):
+            # Unreadable attribute
             datatype,formula = 'DevDouble','NaN'
          
-          else:
+        else:
+            # Standard attributes
             value = classes[s.dev_class].values[a]
             #if value!=t.value: print('!?')
             if fn.isSequence(value): 
@@ -261,86 +362,34 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
                 else t.datatype.replace('Dev','DevVar')+'Array'
             
             if 'bool' in datatype.lower(): 
-                print(a,'bool')
                 formula = DEFAULT_BOOL()
             
             elif 'state' in datatype.lower(): 
-                print(a,'state')
                 formula = DEFAULT_STATE(f='choice(%s or [0])'
                     % list(classes[s.dev_class].values[a]))
             
             elif 'string' in datatype.lower(): 
-                print(a,'string')
                 formula = DEFAULT_STRING(
                     d=d,a=a,f='choice(%s or [0])' % list(value))
                 
             elif 'double' in datatype.lower() or 'float' in datatype.lower(): 
-                print(a,'double')
                 formula = DEFAULT_DOUBLE(f=random.choice(list(value) or [0]))
             
             else: 
-                print(a,'default')
                 formula = DEFAULT_INT(f='choice(%s or [0])' % list(value))
 
             if 'Array' in datatype: 
-                print(a,'array')
                 formula = "[%s for i in range(10)]"%formula
             
-            if all_rw or 'WRITE' in t.writable \
-                or 'UNKNOWN' in t.writable and 'Array' not in datatype: 
-                print(a,t.writable)
+            if all_rw or t.writable != 'READ':
+                #or 'UNKNOWN' in t.writable and 'Array' not in datatype: 
                 formula = DEFAULT_WRITE(a=a,f=formula)
                 
-            classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
+            #classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
             
             print(str((a,datatype,formula))[:80])
-         
-      #Iterate commands
-      for c,t in s.comms.items():
-          
-        if fn.isMapping(t):
-            t = t['in_type'],t['out_type']
             
-        datatype = t[1] if t[1]!='DevVoid' else 'DevString'
-        if 'bool' in datatype.lower(): 
-            formula = DEFAULT_BOOL()
-        elif 'state' in datatype.lower(): 
-            formula = DEFAULT_STATE()
-        elif 'string' in datatype.lower(): 
-            formula = DEFAULT_STRING(d=d,a=c)
-        elif 'double' in datatype.lower() or 'float' in datatype.lower(): 
-            formula = DEFAULT_DOUBLE()
-        else: 
-            formula = DEFAULT_INT()
-        if 'Array' in datatype: 
-            formula = "[%s for i in range(10)]"%formula
-        if 'DevVoid' not in t[0]: 
-            formula = DEFAULT_ARGS(f=formula)
-        classes[s.dev_class].comms[c] = '%s = %s(%s)'%(c,datatype,formula)
-         
-      classes[s.dev_class].states = DEFAULT_STATES
-      
-    for k,t in classes.items():
-      print('\nWriting %s attributes ([%d])\n'%(k,len(t.attrs)))
-      f = open('%s_attributes.txt'%k,'w')
-      for a in sorted(t.attrs.values()):
-        #print('%s'%a)
-        f.write('%s\n'%a)
-      f.close()
-      print('\nWriting %s commands ([%d])\n'%(k,len(t.comms)))
-      f = open('%s_commands.txt'%k,'w')
-      for a in sorted(t.comms.values()):
-        #print('%s'%a)
-        f.write('%s\n'%a)
-      f.close()
-      print('\nWriting %s states ([%d])\n'%(k,len(t.states)))
-      f = open('%s_states.txt'%k,'w')
-      for a in t.states:
-        #print('%s'%a)
-        f.write('%s\n'%a)
-      f.close()  
-
-    return(filein)
+    return formula
 
 def create_simulators(filein,instance='',path='',domains={},
         server='',tango_host='',filters='',override=True): 
