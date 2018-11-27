@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os,sys,threading,pickle,time,traceback,random
+import os,sys,threading,pickle,time,traceback,random,math
 import PyTango,fandango as fn
 from fandango import check_device,check_attribute,Struct,defaultdict
 import fandango.tango as ft
@@ -30,15 +30,15 @@ Typical usage:
 
 DEFAULT_STATE = lambda c=None,d=None,a=None,f='ON': "%s" % f
 DEFAULT_WRITE = (lambda c=None,d=None,a=None,f=None: 
-    "VAR('%s',default=%s) if not WRITE else VAR('%s',VALUE)"%(a,f,a))
+    'VAR("%s",default=(%s)) if not WRITE else VAR("%s",VALUE)'%(a,f,a))
 DEFAULT_DOUBLE = (lambda c=None,d=None,a=None,f=1.: 
-    '%s * (1+2*sin((int(PROPERTY("OFFSET"))+t)%%3.14))' % f)
+    '(%s) * (1+sin((int(PROPERTY("OFFSET"))+t)%%3.14))' % f)
 DEFAULT_INT = (lambda c=None,d=None,a=None,f=1.: 
-    'int(PROPERTY("OFFSET"))+randint(0,10) * %s' % f)
+    'int(PROPERTY("OFFSET"))+randint(0,5) * (%s)' % f)
 DEFAULT_STRING = (lambda c=None,d=None,a=None,f=None: "%s" 
                   % (f or "'%s/%s'"%(d,a)))
-DEFAULT_BOOL = lambda c=None,d=None,a=None,f=None: 'randint(0,1)'
-DEFAULT_ARGS = lambda c=None,d=None,a=None,f=None: 'ARGS and %s' % f
+DEFAULT_BOOL = lambda c=None,d=None,a=None,f=None: f or 'randint(0,1)'
+DEFAULT_ARGS = lambda c=None,d=None,a=None,f=None: 'ARGS and (%s)' % f
 
 DEFAULT_STATES = [
     "MOVING=t%randint(15,30)>randint(1,15)",
@@ -96,9 +96,11 @@ def export_devices_from_application(*args):
     filename,method_name = args[0],(args[1:] or [''])[0]
     args = args[3:]
 
-    main_thread = threading.Thread(target=run_app,args=(filename,method_name,args))
+    main_thread = threading.Thread(target=run_app,
+                                   args=(filename,method_name,args))
     print('*'*80)
-    print('app ready to launch, type the seconds to wait before exporting your devices')
+    print('app ready to launch, '
+        'type the seconds to wait before exporting your devices')
     print('*'*80)
     try:
         timeout = raw_input('enter timeout (in seconds): ')
@@ -115,7 +117,8 @@ def export_devices_from_application(*args):
     import taurus
     factory = taurus.Factory()
     print('*'*80)
-    for f,l in [(exported,factory.getExistingDevices()),(exported2,factory.getExistingAttributes())]:
+    for f,l in [(exported,factory.getExistingDevices()),
+                (exported2,factory.getExistingAttributes())]:
         print('list saved to %s'%f)
         txt = '\n'.join(l.keys())
         if '-v' in OPTS:
@@ -156,13 +159,13 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
     print('export_attributes_to_pck(%s)'%str((filein,fileout)))
     assert fileout.endswith('.pck'), 'output must be a pickle file!'
 
-    all_devs = fn.tango.get_all_devices()
+    #all_devs = fn.tango.get_all_devices()
+    devs = []
     filein = fn.toList(filein)
-    if all(ft.get_normal_name(ft.get_dev_name(d.lower()))
-           in all_devs for d in filein):
-        devs = filein
-    else:
+    if any(os.path.isfile(f) for f in filein):
         devs = export_devices_from_sources(*filein,check=True)
+    else:
+        devs = filein
         
     print('devices to export: %s'%str(devs))
         
@@ -206,12 +209,12 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
     classes.devs keeps the instantiated devices
     classes.attrs keeps the generic formulas
     """
-    print('generate_class_properties:'+str(filein))
+    print('generate_class_properties(%s)' % str(filein))
     f = open(filein)
     pck = pickle.load(f)
     f.close()
+
     classes = defaultdict(Struct)
-    
     if classnames:
         filters = [s.dev_class for s in pck.values() 
                    if s.dev_class not in classnames]
@@ -227,65 +230,62 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
         
     for d,s in pck.items()[:]:
         if s.dev_class.lower() not in filters:
-            s = classes[s.dev_class]
-            if not hasattr(s,'attrs'):
-                s.attrs, s.devs, s.comms = {}, {}, {}
-                s.states, s.status = [], []
-                s.values, s.types = defaultdict(list), {}
+            print('\t%s' % s.dev_class)
+            cs = classes[s.dev_class]
+            if not hasattr(cs,'attrs'):
+                cs.attrs, cs.devs, cs.comms = {}, {}, {}
+                cs.states, cs.status = fn.SortedDict(), []
+                cs.values, cs.types = defaultdict(list), {}
 
-            s.devs[d] = s
+            cs.devs[d] = s
             for a, t in s.attrs.items():
                 if a.lower() == 'state':
-                    s.states.append(t.value)
+                    sv = str(ft.DevState.values[t.value]
+                            if ft.isNumber(t.value) else t.value)
+                    cs.states[sv] = t.value
                 if a.lower() == 'status':
-                    s.status.append(t.value)
+                    cs.status.append(t.value)
                 else:
-                    s.attrs[a] = t # str(t.writable)
-                    s.values[a].append(t.value)
+                    cs.attrs[a] = t # str(t.writable)
+                    cs.values[a].append(t.value)
                     tt = t.get('data_type',t.get('datatype'))
-                    if t.data_format == 'SPECTRUM':
+                    f = getattr(t,'format',None)
+                    if f == 'SPECTRUM':
                         tt = tt.replace('Dev','DevVar')+'Array'
-                    elif t.data_format == 'IMAGE':
+                    elif f == 'IMAGE':
                         tt = tt.replace('Dev','DevVar')+'Image'
-                    s.types[a] = tt
+                    cs.types[a] = tt
 
             for c, t in s.comms.items():
                 if c.lower() not in ('state','status'):
-                    s.comms[c] = None
-                    s.types[c+'()'] = t # in_type / out_type tuple
+                    cs.comms[c] = None
+                    cs.types[c+'()'] = t # in_type / out_type tuple
                     # s.values[c].append(t.value) # Not saved
                 
     for c, s in sorted(classes.items()):
 
         for d in sorted(s.devs):
 
-            for a in sorted(c.attrs):
-                formula = generate_formula(a,s['types'][a],s['values'][a])
-                c.attrs[a] = formula
+            for a in sorted(s.attrs):
+                #print(d,a)
+                 #classes[s.dev_class].values[a]
+                formula = generate_formula(a,s['types'][a],
+                    writable=(getattr(s.attrs[a],'writable',False) or all_rw), 
+                    values=s['values'][a], max_array = max_array)
+                s.attrs[a] = a + '=' + formula
 
-            for c in sorted(c.comms):
-                formula = generate_formula(c,s['types'][c+'()'])
-                c.comms[c] = formula
+            for c in sorted(s.comms):
+                print(d,c)
+                formula = generate_formula(c,s['types'][c+'()'],
+                                           max_array = max_array)
+                s.comms[c] = c + '=' + formula
                 
-    for d,s in devs.items():
-      
-      if s.dev_class in filters: 
-        continue
-     
-      #Iterate attributes
-      for a,t in sorted(s.attrs.items()):
-       
-     
-        if t.value is None and a in classes[s.dev_class].attrs:
-          continue
-     
-        else:
-            
-        #Iterate commands
-        for c,t in s.comms.items():
-            generate_formula(c, t.datatype?)
+            for i, st in enumerate(s.states):
+                s.states[st] = '%s = (t %% %d) == %d' % (st, len(s.states), i)
          
-        classes[s.dev_class].states = DEFAULT_STATES
+        #s.states = DEFAULT_STATES
+        print('%s\nattrs: %s\ncomms: %s\nstates: %s\n' % 
+              (c, s.attrs.keys(), s.comms.keys(), s.states))
       
     for k,t in classes.items():
         print('\nWriting %s attributes ([%d])\n'%(k,len(t.attrs)))
@@ -302,92 +302,100 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
         f.close()
         print('\nWriting %s states ([%d])\n'%(k,len(t.states)))
         f = open('%s_states.txt'%k,'w')
-        for a in t.states:
+        for a in t.states.values():
                 #print('%s'%a)
                 f.write('%s\n'%a)
         f.close()  
 
     return(filein)            
             
-def generate_formula(a, ttype, values = []):
+def generate_formula(a, datatype, writable = False, 
+                     values = [], max_array = 256):
     """ 
     It returns the appropiate (datatype, formula) for the attribute 
     """
-    
-        if isinstance(ttype,tuple) and len(ttype) == 2:
-            # Generate commands formulas
-            # Input values are actually ignored
-            
-            if fn.isMapping(datatype):
-                datatype = datatype['in_type'], datatype['out_type']
+    if isinstance(datatype,tuple) and len(datatype) == 2:
+        # Generate commands formulas
+        # Input values are actually ignored
+        
+        if fn.isMapping(datatype):
+            datatype = datatype['in_type'], datatype['out_type']
 
-            if datatype[0] == datatype[1] and datatype[0] != 'DevVoid':
-                formula = '%s(ARGS[0])' % datatype[0]
-                
-            else:
-                datatype = ('DevString',datatype[1])[datatype[1]!= 'DevVoid']
-                    
-                if 'bool' in datatype.lower(): 
-                    formula = DEFAULT_BOOL()
-                elif 'state' in datatype.lower(): 
-                    formula = DEFAULT_STATE()
-                elif 'string' in datatype.lower(): 
-                    formula = DEFAULT_STRING(d=d,a=c)
-                elif 'double' in datatype.lower() or 'float' in datatype.lower(): 
-                    formula = DEFAULT_DOUBLE()
-                else: 
-                    formula = DEFAULT_INT()
-                    
-                if 'Array' in datatype: 
-                    formula = "[%s for i in range(10)]"%formula
-                if 'DevVoid' not in t[0]: 
-                    formula = DEFAULT_ARGS(f=formula)
-              
-        elif all(v is None for v in values):
-            # Unreadable attribute
-            datatype,formula = 'DevDouble','NaN'
-         
+        if datatype[0] == datatype[1] and datatype[0] != 'DevVoid':
+            formula = '%s(ARGS[0])' % datatype[0]
+            
         else:
-            # Standard attributes
-            value = classes[s.dev_class].values[a]
-            #if value!=t.value: print('!?')
-            if fn.isSequence(value): 
-                print(a,max_array)
-                if len(value) and fn.isSequence(value[0]):
-                    # value = [v[:max_array/len(value)] for v in value]
-                    value = value[0]
-                value = value[:max_array]
-            
-            datatype = t.datatype if t.data_format=='SCALAR' \
-                else t.datatype.replace('Dev','DevVar')+'Array'
-            
+            datatype = ('DevString',datatype[1])[datatype[1]!= 'DevVoid']
+                
             if 'bool' in datatype.lower(): 
                 formula = DEFAULT_BOOL()
-            
             elif 'state' in datatype.lower(): 
-                formula = DEFAULT_STATE(f='choice(%s or [0])'
-                    % list(classes[s.dev_class].values[a]))
-            
+                formula = DEFAULT_STATE()
             elif 'string' in datatype.lower(): 
-                formula = DEFAULT_STRING(
-                    d=d,a=a,f='choice(%s or [0])' % list(value))
-                
+                formula = DEFAULT_STRING(d='?',a=a)
             elif 'double' in datatype.lower() or 'float' in datatype.lower(): 
-                formula = DEFAULT_DOUBLE(f=random.choice(list(value) or [0]))
-            
+                formula = DEFAULT_DOUBLE()
             else: 
-                formula = DEFAULT_INT(f='choice(%s or [0])' % list(value))
-
+                formula = DEFAULT_INT()
+                
             if 'Array' in datatype: 
                 formula = "[%s for i in range(10)]"%formula
+            if 'DevVoid' not in t[0]: 
+                formula = DEFAULT_ARGS(f=formula)
+        
+    else:
+        # Standard attributes
+        datatype, values = str(datatype), fn.toList(values)
+        # Get first stored value
+        value = len(values) and values[0] or None
+
+        if fn.isSequence(value): 
+            datatype = datatype.replace('Dev','DevVar')+'Array'
+            values = [fn.toList(v)[:max_array] for v in values]
+            if len(value) and fn.isSequence(value[0]):
+                dataformat = 'IMAGE'
+                values = [[w[:max_array] for w in v][:max_array] for v in values]
+                #values = [[[w[:max_array] for w in ww] for ww in fn.toList(v)[:max_array]] for v in values]
+                value = value[0]
+            else:
+                dataformat = 'SPECTRUM'
+            value = value[:max_array]
+        else:
+            dataformat = 'SCALAR'
             
-            if all_rw or t.writable != 'READ':
-                #or 'UNKNOWN' in t.writable and 'Array' not in datatype: 
-                formula = DEFAULT_WRITE(a=a,f=formula)
-                
-            #classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
+        m,args = fn.matchMap((
+            ('*bool*', (DEFAULT_BOOL,{'f':'choice(%s or [0])' % values})),
+            ('state*', (DEFAULT_STATE,{'f':'choice(%s or [0])' % values})),
+            ('*string*',(DEFAULT_STRING, 
+                {'d':'?','a':a,'f':'choice(%s or [0])' % values})),
+            ('*(double|float)*', (DEFAULT_DOUBLE, 
+                {'f':'choice(%s)' % (values)})),
+            ('*', (DEFAULT_INT, {'f':'choice(%s or [0])' % (values)})),
+            ), datatype)
+
+        if 'Array' in datatype and 'f' in args: 
+            args['f'] = 'choice(%s)' % args['f']
+            if dataformat == 'IMAGE':
+                args['f'] = 'choice(%s)' % args['f']
+        formula = m(**args)
+        if 'Array' in datatype:
+            formula = "[%s for i in range(%d)]" % (formula, len(value))
+        try:
+            eval(formula,{'PROPERTY': (lambda v:0), 't': 1, 
+              'choice': random.choice, 'randint': random.randint, 
+              'sin': math.sin})
+        except Exception as e:
+            print('NotEvaluable! %s = %s' % (a,formula[:80]))
+        
+        if writable not in ('READ',False):
+            #or 'UNKNOWN' in t.writable and 'Array' not in datatype: 
+            formula = DEFAULT_WRITE(a=a,f=formula)
             
-            print(str((a,datatype,formula))[:80])
+        formula = '%s(%s)' % (datatype, formula)            
+            
+        #classes[s.dev_class].attrs[a] = '%s = %s(%s)'%(a,datatype,formula)
+        
+        print(str((a,datatype,formula))[:80])
             
     return formula
 
