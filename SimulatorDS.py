@@ -81,43 +81,49 @@ import Signals
 def get_module_dict(module,ks=None):
     return dict((k,v) for k,v in module.__dict__.items() if (not ks or k in ks) and not k.startswith('__'))
 
-#==================================================================
-#   SimulatorDS Class Description:
-#
-#         <p>This device requires <a href="http://www.tango-controls.org/Documents/tools/fandango/fandango">Fandango module<a> to be available in the PYTHONPATH.</p>
-#         <p>
-#         This Python Device Server will allow to declare dynamic attributes which values will depend on a given time-dependent formula:
-#         </p>
-#         <h5 id="Example:">Example:</h5>
-#         <pre class="wiki">  Square=0.5+square(t) #(t = seconds since the device started)
-#         NoisySinus=2+1.5*sin(3*t)-0.5*random()
-#         SomeNumbers=DevVarLongArray([1000.*i for i in range(1,10)])
-#         </pre><p>
-#         Attributes are DevDouble by default, but any Tango type or python expression can be used for declaration. <br>
-#         Format is specified at <a class="ext-link" href="http://www.tango-controls.org/Members/srubio/dynamicattributes"><span class="icon">tango-controls.org</span></a>
-#         </p>
-#         <p>
-#         Signals that can be easily generated with amplitude between 0.0 and 1.0 are:
-#         </p>
-#         <blockquote>
-#         <p>
-#         rampt(t), sin(t), cos(t), exp(t), triangle(t), square(t,duty), random()
-#         </p>
-#         </blockquote>
-#         <p>
-#         The MaxValue/MinValue property for each Attribute will determine the State of the Device only if the property DynamicStates is not defined.
-#         </p>
-#         <p>
-#         If defined, <strong>DynamicStates</strong> will use this format:
-#         </p>
-#         <pre class="wiki">  FAULT=2*square(0.9,60)
-#         ALARM=NoisySinus
-#         ON=1
-#         </pre><p>
-#         This device inherits from <strong>fandango.dynamic.DynamicDS</strong> Class
-#         </p>
-#
-#==================================================================
+__doc__ = """
+SimulatorDS Class Description: https://github.com/tango-controls/SimulatorDS
+
+<p>This device requires <a href="https://github.com/tango-controls/fandango">
+Fandango module<a> to be available in the PYTHONPATH.</p>
+<p>
+This Python Device Server will allow to declare dynamic attributes which 
+values will depend on a given time-dependent formula:
+</p>
+<h5 id="Example:">Example:</h5>
+<pre class="wiki">  Square=0.5+square(t) #(t = seconds since the device started)
+NoisySinus=2+1.5*sin(3*t)-0.5*random()
+SomeNumbers=DevVarLongArray([1000.*i for i in range(1,10)])
+</pre><p>
+Attributes are DevDouble by default, but any Tango type or python expression 
+can be used for declaration. <br>
+Format is specified at <a class="ext-link" 
+href="http://www.tango-controls.org/Members/srubio/dynamicattributes">
+<span class="icon">tango-controls.org</span></a>
+</p>
+<p>
+Signals that can be easily generated with amplitude between 0.0 and 1.0 are:
+</p>
+<blockquote>
+<p>
+rampt(t), sin(t), cos(t), exp(t), triangle(t), square(t,duty), random()
+</p>
+</blockquote>
+<p>
+The MaxValue/MinValue property for each Attribute will determine the State 
+of the Device only if the property DynamicStates is not defined.
+</p>
+<p>
+If defined, <strong>DynamicStates</strong> will use this format:
+</p>
+<pre class="wiki">  FAULT=2*square(0.9,60)
+ALARM=NoisySinus
+ON=1
+</pre><p>
+This device inherits from <strong>fandango.dynamic.DynamicDS</strong> Class
+</p>
+
+"""
 
 
 class SimulatorDS(DynamicDS):
@@ -144,7 +150,8 @@ class SimulatorDS(DynamicDS):
         print 'IN SimulatorDS.__INIT__'
         _locals = {}
         [_locals.update(get_module_dict(m)) for m in self.LIBS]
-        _locals.update((k.__name__,k) for k in self.NAMES if hasattr(k,'__name__'))
+        _locals.update((k.__name__,k) for k in self.NAMES 
+                       if hasattr(k,'__name__'))
         _locals.update(self.OTHERS)
         #_locals.update(locals())
         #_locals.update(globals())
@@ -167,7 +174,8 @@ class SimulatorDS(DynamicDS):
             DynamicDS.init_device(self) #New in Fandango 11.1
         except:
             self.get_DynDS_properties() #LogLevel is already set here
-        if PyTangoArchiving and 'archiving' in str(self.DynamicAttributes): #+str(self.DynamicCommands):
+        if PyTangoArchiving and 'archiving' in str(self.DynamicAttributes): 
+            #+str(self.DynamicCommands):
             print 'Adding PyTangoArchiving support ...'
             self._locals['archiving'] = PyTangoArchiving.Reader()
         self.set_state(PyTango.DevState.ON)
@@ -190,8 +198,9 @@ class SimulatorDS(DynamicDS):
 #------------------------------------------------------------------
     def read_attr_hardware(self,data):
         #print "In ", self.get_name(), "::read_attr_hardware()"
-        if self.SimulationDelay>0:
-            self.info('Delaying read_attribute by %f seconds'%self.SimulationDelay)
+        if self.SimulationDelay > 0:
+            self.info('Delaying read_attribute by %f seconds'
+                      % self.SimulationDelay)
             wait(self.SimulationDelay)
 
 #==================================================================
@@ -216,11 +225,19 @@ class SimulatorDSClass(DynamicDSClass):
     device_property_list = {
         'DynamicAttributes':
             [PyTango.DevVarStringArray,
-            "Attributes and formulas to create for this device.\n<br/>\nThis Tango Attributes will be generated dynamically using this syntax:\n<br/>\nT3=int(SomeCommand(7007)/10.)\n\n<br/>\nSee the class description to know how to make any method available in attributes declaration.",
+            "Attributes and formulas to create for this device.\n<br/>\n"
+            "This Tango Attributes will be generated dynamically using this "
+            "syntax:\n<br/>\nT3=int(SomeCommand(7007)/10.)\n\n<br/>\n"
+            "See the class description to know how to make any method "
+            "available in attributes declaration.",
             [ ] ],
         'DynamicStates':
             [PyTango.DevVarStringArray,
-            "This property will allow to declare new States dinamically based on\n<br/>\ndynamic attributes changes. The function Attr will allow to use the\n<br/>\nvalue of attributes in formulas.<br/>\n\n\n<br/>\nALARM=Attr(T1)>70<br/>\nOK=1",
+            "This property will allow to declare new States dinamically"
+            " based on\n<br/>\ndynamic attributes changes. "
+            "The function Attr will allow to use the\n<br/>\n"
+            "value of attributes in formulas.<br/>\n\n\n<br/>\n"
+            "ALARM=Attr(T1)>70<br/>\nOK=1",
             [ ] ],
         'UseScipy':
             [PyTango.DevBoolean,
@@ -232,7 +249,8 @@ class SimulatorDSClass(DynamicDSClass):
             [ 0.0 ] ],
         'PushEvents':
             [PyTango.DevDouble,
-            "Set condition for pushing events, N or N>t=periodic; N>diff/rel for change event",
+            "Set condition for pushing events, N or N>t=periodic; "
+            "N>diff/rel for change event",
             [ 0.0 ] ],            
         }
 
@@ -264,7 +282,8 @@ class SimulatorDSClass(DynamicDSClass):
 #class PySignalSimulator(SimulatorDS): pass
 #class PySignalSimulatorClass(SimulatorDSClass): pass
 
-#SimulatorDS,SimulatorDSClass = FullTangoInheritance('SimulatorDS',SimulatorDS,SimulatorDSClass,DynamicDS,DynamicDSClass,ForceDevImpl=True)
+#SimulatorDS,SimulatorDSClass = FullTangoInheritance('SimulatorDS',
+#   SimulatorDS,SimulatorDSClass,DynamicDS,DynamicDSClass,ForceDevImpl=True)
 
 def main(args=None):
     try:
@@ -279,7 +298,6 @@ def main(args=None):
 
         if 'SimulatorDS' not in klasses:
             py.add_TgClass(SimulatorDSClass,SimulatorDS,'SimulatorDS')
-        #py.add_TgClass(PySignalSimulatorClass,PySignalSimulator,'PySignalSimulator')
 
         U = PyTango.Util.instance()
         fandango.dynamic.CreateDynamicCommands(SimulatorDS,SimulatorDSClass)
@@ -287,9 +305,11 @@ def main(args=None):
         U.server_run()
 
     except PyTango.DevFailed,e:
-        print('-------> Received a DevFailed exception:',traceback.format_exc())
+        print('-------> Received a DevFailed exception:',
+              traceback.format_exc())
     except Exception,e:
-        print('-------> An unforeseen exception occured....',traceback.format_exc())
+        print('-------> An unforeseen exception occured....',
+              traceback.format_exc())
 
 if __name__ == '__main__':
     main()
