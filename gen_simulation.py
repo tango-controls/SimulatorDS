@@ -131,12 +131,12 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
     assert fileout.endswith('.pck'), 'output must be a pickle file!'
 
     all_devs = fd.tango.get_all_devices()
-    filein = fd.toList(filein)
-    if all(ft.get_normal_name(ft.get_dev_name(d.lower()))
-           in all_devs for d in filein):
-        devs = filein
-    else:
-        devs = export_devices_from_sources(*filein,check=True)
+    devs = []
+    for d in fd.toList(filein):
+        if ft.get_normal_name(ft.get_dev_name(d.lower())) in all_devs:
+            devs.append(d)
+        elif os.path.exists(d):
+            devs.extend(export_devices_from_sources(d,check=True))
         
     print('devices to export: %s'%str(devs))
         
@@ -585,13 +585,19 @@ def main(args):
     if check('live_export'):
         filename = export_devices_from_application(*args[:2])
         
-    if check('device_export'):
-        devs = sorted(fd.join(map(ft.get_matching_devices,args[:-1])))
-        filename = export_attributes_to_pck(devs,fileout=args[-1])
+    #if check('device_export'):
+        #devs = sorted(fd.join(map(ft.get_matching_devices,args[:-1])))
+        #filename = export_attributes_to_pck(devs,fileout=args[-1])
 
-    elif check('export'):
-        if len(args)>=1: args = (args[:-1],filename)
-        filename = export_attributes_to_pck(*args)
+    if check('export') or check('device_export'):
+        devs = []
+        args, filename = args[:-1],filename
+        for a in args:
+            if not os.path.exists(a) and '*' in a:
+                devs.extend(ft.find_devices(a))
+            else:
+                devs.append(a)
+        filename = export_attributes_to_pck(devs, filename)
         
     #############################################################################
 
