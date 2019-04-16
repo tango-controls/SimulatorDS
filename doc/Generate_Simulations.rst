@@ -83,6 +83,7 @@ You can use several methods:
    vi devices.txt
   
    # Then export all the devices configuration to a pickle file
+   # Devices must be previously started, in order to inspect their attributes
    gen_simulation.py export devices.txt xgui_attributes.pck
  
 
