@@ -287,9 +287,11 @@ def main(args=None):
         U.server_run()
 
     except PyTango.DevFailed,e:
-        print('-------> Received a DevFailed exception:',traceback.format_exc())
+        print('-------> Received a DevFailed exception:')
+        traceback.print_exc()
     except Exception,e:
-        print('-------> An unforeseen exception occured....',traceback.format_exc())
+        print('-------> An unforeseen exception occured....')
+        traceback.print_exc()
 
 if __name__ == '__main__':
     main()
