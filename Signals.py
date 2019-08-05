@@ -1,24 +1,10 @@
 import math, time, pickle, traceback
+import fandango as fn
 from math import fmod
 from math import pi    
 
-def pick(filename, keys = []):
-    f = open(filename)
-    v = pickle.load(f)
-    f.close()
-    if keys:
-        try:
-            for k in keys:
-                v = v.get(k)
-        except:
-            traceback.print_exc()
-    return v
-
-def dump(filename, value):
-    f = open(filename, 'w')
-    pickle.dump(f, value)
-    f.close()   
-    
+from fandango.objects import pick, dump
+  
 def triangle(t,period=2.*pi):
     t = fmod(t,period) ;
     delta = fmod(t,.25*period)/(.25*period)
@@ -32,11 +18,19 @@ def triangle(t,period=2.*pi):
         return -1.+delta
     
 def ripple(value, amp=0., rel=0., t=0, period=2*pi):
-    value = float(value)
-    t = t or time.time()
-    if rel:
-        amp = value * rel
-    return value + amp*sin(t,period)
+    if fn.isSequence(value):
+        return [ripple(v,amp,rel,t,period) for v in value]
+    try:
+        value = float(value)
+        t = t or time.time()
+        if rel:
+            if value:
+                amp = value * rel
+            else:
+                amp = 1e-12
+        return value + amp*sin(t,period)
+    except:
+        return value
 
 def sin(t,period=2*pi):
     '''sinus when t=period should be equal to sinus 2*pi'''
