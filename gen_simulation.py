@@ -28,17 +28,20 @@ Typical usage:
     gen_simulation.py play your_instance_name
 """
 
-DEFAULT_STATE = lambda c=None,d=None,a=None,f='ON': "%s" % f
-DEFAULT_WRITE = (lambda c=None,d=None,a=None,f=None: 
-    'VAR("%s",default=(%s)) if not WRITE else VAR("%s",VALUE)'%(a,f,a))
-DEFAULT_DOUBLE = (lambda c=None,d=None,a=None,f=1.: 
-    '(%s) * (1+sin((int(PROPERTY("OFFSET"))+t)%%3.14))' % f)
+DEFAULT_STATE = lambda c=None,d=None,a=None,f='ON': "%s" % str(f)
+DEFAULT_WRITE = lambda c=None,d=None,a=None,f=None: (
+    "VAR('%s',default=%s) if not WRITE else VAR('%s',VALUE,default=%s)" 
+    % (a,f,a,f))
+DEFAULT_DOUBLE = lambda c=None,d=None,a=None,f=1.: (
+    'ripple(%s, rel=0.05)'%str(f) )
 DEFAULT_INT = (lambda c=None,d=None,a=None,f=1.: 
-    'int(PROPERTY("OFFSET"))+randint(0,5) * (%s)' % f)
-DEFAULT_STRING = (lambda c=None,d=None,a=None,f=None: "%s" 
-                  % (f or "'%s/%s'"%(d,a)))
-DEFAULT_BOOL = lambda c=None,d=None,a=None,f=None: f or 'randint(0,1)'
-DEFAULT_ARGS = lambda c=None,d=None,a=None,f=None: 'ARGS and (%s)' % f
+    'int(ripple(%s, 1))'%str(f))
+DEFAULT_STRING = lambda c=None,d=None,a=None,f=None: ( 
+    "%s" % str(f or "'%s/%s'"%(d,a)))
+DEFAULT_BOOL = lambda c=None,d=None,a=None,f=None: (
+    f or 'randint(0,1)')
+DEFAULT_ARGS = lambda c=None,d=None,a=None,f=None: (
+    'ARGS and (%s)' % str(f))
 
 DEFAULT_STATES = [
     "MOVING=t%randint(15,30)>randint(1,15)",
@@ -150,7 +153,8 @@ def export_devices_from_sources(*files,**options):
 
     if options.get('check',None):
         all_devs = ft.get_all_devices()
-        devs = [d for d in devs if d.lower() in all_devs]
+        devs = [d for d in devs 
+            if ft.get_normal_name(ft.get_dev_name(d.lower())) in all_devs]
     return devs
 
 def export_attributes_to_pck(filein='ui_exported_devices.txt',
@@ -159,7 +163,6 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
     print('export_attributes_to_pck(%s)'%str((filein,fileout)))
     assert fileout.endswith('.pck'), 'output must be a pickle file!'
 
-    #all_devs = fn.tango.get_all_devices()
     devs = []
     filein = fn.toList(filein)
     if any(os.path.isfile(f) for f in filein):
@@ -173,20 +176,24 @@ def export_attributes_to_pck(filein='ui_exported_devices.txt',
     devs = defaultdict(Struct)
 
     for d,dp in sorted(proxies.items()):
-      print('%s (%d/%d)' % (d,1+len(devs),len(proxies)))
-      obj = devs[d]
-      obj.dev_class,obj.attrs,obj.comms = '',defaultdict(Struct),{}
-      obj.props = dict((k,v if not 'vector' in str(type(v)).lower() else list(v)) for k,v in fn.tango.get_matching_device_properties(d,'*').items() if 'dynamicattributes' not in k.lower())
-      if fn.check_device(d):
-        devs[d].name = d
-        devs[d].dev_class = dp.info().dev_class
-        for c in dp.command_list_query():
-         if c.cmd_name.lower() not in ('state','status','init'):
-          obj.comms[c.cmd_name] = (str(c.in_type),str(c.out_type))
-        for a in dp.get_attribute_list():
-         if a.lower() == 'status':
-          continue
-         obj.attrs[a] = fn.tango.export_attribute_to_dict(d,a,as_struct=True)
+        print('%s (%d/%d)' % (d,1+len(devs),len(proxies)))
+        obj = devs[d]
+        obj.dev_class,obj.attrs,obj.comms = '',defaultdict(Struct),{}
+        obj.props = dict((k,v if not 'vector' in str(type(v)).lower() 
+                    else list(v)) for k,v in 
+                    fn.tango.get_matching_device_properties(d,'*').items() 
+                    if 'dynamicattributes' not in k.lower())
+      
+        if fn.check_device(d):
+            devs[d].name = d
+            devs[d].dev_class = dp.info().dev_class
+            for c in dp.command_list_query():
+                if c.cmd_name.lower() not in ('state','status','init'):
+                    obj.comms[c.cmd_name] = (str(c.in_type),str(c.out_type))
+            for a in dp.get_attribute_list():
+                if a.lower() == 'status':
+                    continue
+            obj.attrs[a] = fn.tango.export_attribute_to_dict(d,a,as_struct=True)
       
     pickle.dump(devs,open(fileout,'w'))
     print('\n%s has been generated, now copy it to your test environment [host] and'
@@ -215,6 +222,7 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
     f.close()
 
     classes = defaultdict(Struct)
+
     if classnames:
         filters = [s.dev_class for s in pck.values() 
                    if s.dev_class not in classnames]
@@ -227,6 +235,12 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
         
     max_array = max_array or int(raw_input(
         'Enter the maximum array length [128]:').strip() or 128)
+    
+    #use_pick = raw_input('Do you want to use pickle to load array values?[Yn]')
+    #if use_pick.lower().strip() in ('y','yes'):
+        #use_pick = True
+        #raw_input('Remember to set device property:\n\t'
+            #'PCKFILE = "/path/to/file.pck"\n\npress enter')    
         
     for d,s in pck.items()[:]:
         if s.dev_class.lower() not in filters:
@@ -271,13 +285,13 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
                  #classes[s.dev_class].values[a]
                 formula = generate_formula(a,s['types'][a],
                     writable=(getattr(s.attrs[a],'writable',False) or all_rw), 
-                    values=s['values'][a], max_array = max_array)
+                    values=s['values'][a], max_array = max_array), #use_pick=use_pick)
                 s.attrs[a] = a + '=' + formula
 
             for c in sorted(s.comms):
                 print(d,c)
                 formula = generate_formula(c,s['types'][c+'()'],
-                                           max_array = max_array)
+                        max_array = max_array) #, use_pick=use_pick)
                 s.comms[c] = c + '=' + formula
                 
             for i, st in enumerate(s.states):
@@ -337,7 +351,7 @@ def generate_formula(a, datatype, writable = False,
                 formula = DEFAULT_DOUBLE()
             else: 
                 formula = DEFAULT_INT()
-                
+
             if 'Array' in datatype: 
                 formula = "[%s for i in range(10)]"%formula
             if 'DevVoid' not in t[0]: 
@@ -355,7 +369,8 @@ def generate_formula(a, datatype, writable = False,
             if len(value) and fn.isSequence(value[0]):
                 dataformat = 'IMAGE'
                 values = [[w[:max_array] for w in v][:max_array] for v in values]
-                #values = [[[w[:max_array] for w in ww] for ww in fn.toList(v)[:max_array]] for v in values]
+                #values = [[[w[:max_array] for w in ww] for ww 
+                #in fn.toList(v)[:max_array]] for v in values]
                 value = value[0]
             else:
                 dataformat = 'SPECTRUM'
@@ -372,11 +387,23 @@ def generate_formula(a, datatype, writable = False,
                 {'f':'choice(%s)' % (values)})),
             ('*', (DEFAULT_INT, {'f':'choice(%s or [0])' % (values)})),
             ), datatype)
+            
+        #@@ TODO: implement get data from pickle
+        #if t.data_format != 'SCALAR': 
+            #formula = "[%s for i in range(10)]"%formula
+            #if use_pick:
+                #vv = ("pick(PGET('PCKFILE'),"
+                    #"['%s','attrs','%s','value'])" % (d,a))
+            #else:
+                #vv = str(random.choice(values))
+
+            #formula = "ripple(%s)" % vv # It will respect non-numbers            
 
         if 'Array' in datatype and 'f' in args: 
             args['f'] = 'choice(%s)' % args['f']
             if dataformat == 'IMAGE':
                 args['f'] = 'choice(%s)' % args['f']
+                
         formula = m(**args)
         if 'Array' in datatype:
             formula = "[%s for i in range(%d)]" % (formula, len(value))
@@ -695,14 +722,20 @@ def main(args):
     if check('live_export'):
         filename = export_devices_from_application(*args[:2])
         
-    if check('device_export'):
-        devs = sorted(fn.join(map(ft.get_matching_devices,args[:-1])))
-        filename = export_attributes_to_pck(devs,fileout=args[-1])
+    #if check('device_export'):
+        #devs = sorted(fn.join(map(ft.get_matching_devices,args[:-1])))
+        #filename = export_attributes_to_pck(devs,fileout=args[-1])
 
-    elif check('export'):
-        if len(args)>=1: args = (args[:-1],filename)
-        filename = export_attributes_to_pck(*args)
-        
+    if check('export') or check('device_export'):
+        devs = []
+        args, filename = args[:-1],filename
+        for a in args:
+            if not os.path.exists(a) and '*' in a:
+                devs.extend(ft.find_devices(a))
+            else:
+                devs.append(a)
+        filename = export_attributes_to_pck(devs, filename)
+     
     #############################################################################
 
     elif check('generate'):
