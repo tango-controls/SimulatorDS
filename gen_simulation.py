@@ -235,6 +235,12 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
         
     max_array = max_array or int(raw_input(
         'Enter the maximum array length [128]:').strip() or 128)
+    
+    #use_pick = raw_input('Do you want to use pickle to load array values?[Yn]')
+    #if use_pick.lower().strip() in ('y','yes'):
+        #use_pick = True
+        #raw_input('Remember to set device property:\n\t'
+            #'PCKFILE = "/path/to/file.pck"\n\npress enter')    
         
     for d,s in pck.items()[:]:
         if s.dev_class.lower() not in filters:
@@ -279,13 +285,13 @@ def generate_class_properties(filein='ui_attribute_values.pck',all_rw=False,
                  #classes[s.dev_class].values[a]
                 formula = generate_formula(a,s['types'][a],
                     writable=(getattr(s.attrs[a],'writable',False) or all_rw), 
-                    values=s['values'][a], max_array = max_array)
+                    values=s['values'][a], max_array = max_array), #use_pick=use_pick)
                 s.attrs[a] = a + '=' + formula
 
             for c in sorted(s.comms):
                 print(d,c)
                 formula = generate_formula(c,s['types'][c+'()'],
-                                           max_array = max_array)
+                        max_array = max_array) #, use_pick=use_pick)
                 s.comms[c] = c + '=' + formula
                 
             for i, st in enumerate(s.states):
@@ -363,7 +369,8 @@ def generate_formula(a, datatype, writable = False,
             if len(value) and fn.isSequence(value[0]):
                 dataformat = 'IMAGE'
                 values = [[w[:max_array] for w in v][:max_array] for v in values]
-                #values = [[[w[:max_array] for w in ww] for ww in fn.toList(v)[:max_array]] for v in values]
+                #values = [[[w[:max_array] for w in ww] for ww 
+                #in fn.toList(v)[:max_array]] for v in values]
                 value = value[0]
             else:
                 dataformat = 'SPECTRUM'
@@ -380,11 +387,23 @@ def generate_formula(a, datatype, writable = False,
                 {'f':'choice(%s)' % (values)})),
             ('*', (DEFAULT_INT, {'f':'choice(%s or [0])' % (values)})),
             ), datatype)
+            
+        #@@ TODO: implement get data from pickle
+        #if t.data_format != 'SCALAR': 
+            #formula = "[%s for i in range(10)]"%formula
+            #if use_pick:
+                #vv = ("pick(PGET('PCKFILE'),"
+                    #"['%s','attrs','%s','value'])" % (d,a))
+            #else:
+                #vv = str(random.choice(values))
+
+            #formula = "ripple(%s)" % vv # It will respect non-numbers            
 
         if 'Array' in datatype and 'f' in args: 
             args['f'] = 'choice(%s)' % args['f']
             if dataformat == 'IMAGE':
                 args['f'] = 'choice(%s)' % args['f']
+                
         formula = m(**args)
         if 'Array' in datatype:
             formula = "[%s for i in range(%d)]" % (formula, len(value))
